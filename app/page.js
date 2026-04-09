@@ -15,24 +15,16 @@ export default function Home() {
   const [dark, setDark] = useState(true);
   const [loaded, setLoaded] = useState(false);
 
-  const tabs = ["Trending", "All", "Gaming"];
+  const tabs = ["All", "Mobiles", "Laptops", "Appliances", "Audio"];
    const [viewers, setViewers] = useState({});
 
  useEffect(() => {
   const runFilter = async () => {
     let filtered = products;
 
-    if (activeTab === "Trending") {
-      const res = await fetch("/api/trending");
-      const counts = await res.json();
-
-      filtered = [...products].sort(
-        (a, b) =>
-          (counts[b.name] || 0) - (counts[a.name] || 0)
-      );
-    } else if (activeTab !== "All") {
-      filtered = filtered.filter((p) => p.category === activeTab);
-    }
+   if (activeTab !== "All") {
+  filtered = filtered.filter((p) => p.category === activeTab);
+}
 
     filtered = filtered.filter((p) =>
       p.name.toLowerCase().includes(query.toLowerCase())
