@@ -118,8 +118,8 @@ useEffect(() => {
 
   return (
     <div className={dark 
-  ? "bg-[#121212] text-white min-h-screen px-6 py-10 animate-fade-in" 
-  : "bg-[#eef2f7] text-black min-h-screen px-6 py-10 animate-fade-in"
+  ? "bg-[#121212] text-white min-h-screen px-4 sm:px-6 py-10 pb-24 animate-fade-in" 
+  : "bg-[#eef2f7] text-black min-h-screen px-4 sm:px-6 py-10 pb-24  animate-fade-in"
 }>
   <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-blue-500 opacity-20 blur-3xl rounded-full pointer-events-none"></div>
       <div className={`sticky top-0 z-50 backdrop-blur-lg border-b shadow sm ${
@@ -137,7 +137,7 @@ useEffect(() => {
       <div className="flex items-center gap-3"></div>
 
   <ShoppingCart
-    className={`w-20 h-20 text-blue-500 transform transition-all duration-700 ${
+    className={`w-12 h-12 sm:w-20 sm:h-20 text-blue-500 transform transition-all duration-700 ${
       loaded ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"
     }`}
   />
@@ -179,7 +179,7 @@ active:scale-95"
   <div className="w-20 h-1 bg-blue-500 mx-auto mt-3 rounded-full"></div>
 </div>
       {/* TABS */}
-      <div className="flex gap-3 justify-center mb-6 flex-wrap">
+      <div className="flex gap-3 mb-6 overflow-x-auto sm:justify-center px-2 no-scrollbar">
         {tabs.map((tab) => (
           <div
             key={tab}
@@ -198,7 +198,7 @@ ${
       </div>
 
       {/* SEARCH */}
-     <div className={`max-w-2xl mx-auto flex gap-2 mb-10 transition-all duration-300 ${
+     <div className={`w-full max-w-2xl mx-auto flex gap-2 mb-10 px-2 transition-all duration-300 ${
   showFloatingSearch ? "opacity-0 pointer-events-none" : "opacity-100"
 }`}>
   <input
@@ -230,9 +230,9 @@ ${dark
           const savings = higher - lower;
 
           return (
-            <div className={`relative p-5 rounded-2xl border transition-all duration-300 ease-out cursor-pointer
+            <div className={`relative p-3 sm:p-5 rounded-2xl border transition-all duration-300 ease-out cursor-pointer
 transform
-hover:-translate-y-2 hover:scale-[1.02]
+hover:-translate-y-2 hover:scale-[1.02] active:scale-95
 hover:border-blue-500
 hover:shadow-[0_25px_50px_rgba(0,0,255,0.25)]
 before:absolute before:inset-0 before:rounded-2xl before:opacity-0 hover:before:opacity-100
@@ -244,12 +244,12 @@ ${dark ? "bg-[#1a1a1a] border-gray-700" : "bg-white border-gray-300"}`}
               <div className="flex gap-4 items-center">
                 <img 
   src={product.image}
-  className="w-28 h-28 rounded-md object-cover transition-transform duration-300 hover:scale-110"
+  className="w-20 h-20 sm:w-28 sm:h-28 rounded-md object-cover transition-transform duration-300 hover:scale-110"
 />
-                <h2 className="text-l font-semibold hover:text-blue-500 transition cursor-pointer">{product.name}</h2>
+                <h2 className="text-sm sm:text-lg font-semibold hover:text-blue-500 transition cursor-pointer">{product.name}</h2>
               </div>
 
-             <div className="flex justify-between mt-4 text-l font-extrabold">
+             <div className="flex justify-between mt-4 text-sm sm:text-lg font-extrabold">
 
   {/* AMAZON */}
   <div className="flex flex-col items-start">
@@ -320,7 +320,7 @@ ${dark ? "bg-[#1a1a1a] border-gray-700" : "bg-white border-gray-300"}`}
 <div className="text-xs text-gray-400 mt-2">
   🔒 Safe redirect to Amazon / Flipkart
 </div>
-              <div className="flex gap-2 mt-4">
+              <div className="flex flex-col sm:flex-row gap-2 mt-4">
                 <button
   onClick={() => {
   fetch("/api/click", {
@@ -333,7 +333,7 @@ ${dark ? "bg-[#1a1a1a] border-gray-700" : "bg-white border-gray-300"}`}
 
   window.open(product.amazonLink, "_blank");
 }}
-  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95"
+  className="w-full sm:w-auto px-3 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95"
 >
   Amazon
 </button>
@@ -350,7 +350,7 @@ ${dark ? "bg-[#1a1a1a] border-gray-700" : "bg-white border-gray-300"}`}
 
   window.open(product.flipkartLink, "_blank");
 }}
-  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95"
+  className="w-full sm:w-auto px-3 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95"
 >
   Flipkart
 </button>
@@ -368,7 +368,7 @@ ${dark ? "bg-[#1a1a1a] border-gray-700" : "bg-white border-gray-300"}`}
 
   window.open(best.link, "_blank");
 }}
-  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-red-500 to-red-800 text-white font-semibold transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95"
+ className="w-full sm:w-auto px-3 py-2 rounded-xl bg-gradient-to-r from-red-500 to-red-800 text-white font-semibold transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95"
 >
   Buy
 </button>
@@ -396,10 +396,10 @@ ${dark ? "bg-[#1a1a1a] border-gray-700" : "bg-white border-gray-300"}`}
       window.scrollTo({ top: 0, behavior: "smooth" });
       setShowFloatingSearch(false);
     }}
-    className="fixed bottom-6 right-6 z-50 p-4 rounded-full
-    bg-gradient-to-r from-red-500 to-red-700 text-white
-    shadow-lg hover:scale-110 active:scale-95 transition-all duration-300"
-  >
+    className="fixed bottom-6 right-6 sm:hidden z-50 p-4 rounded-full
+bg-gradient-to-r from-red-500 to-red-700 text-white
+shadow-lg hover:scale-110 active:scale-95 transition-all duration-300"
+    >
     🔍
   </button>
 )}
