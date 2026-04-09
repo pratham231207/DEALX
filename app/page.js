@@ -118,10 +118,10 @@ useEffect(() => {
 
   return (
     <div className={dark 
-  ? "bg-[#121212] text-white min-h-screen px-3 sm:px-6 py-10 pb-24 overflow-x-hidden animate-fade-in" 
-  : "bg-[#eef2f7] text-black min-h-screen px-3 sm:px-6 py-10 pb-24 overflow-x-hidden animate-fade-in"
+  ? "bg-[#121212] text-white min-h-screen px-6 py-10 animate-fade-in" 
+  : "bg-[#eef2f7] text-black min-h-screen px-6 py-10 animate-fade-in"
 }>
-  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-blue-500 opacity-20 blur-3xl rounded-full pointer-events-none"></div>
+  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-blue-500 opacity-20 blur-3xl rounded-full pointer-events-none"></div>
       <div className={`sticky top-0 z-50 backdrop-blur-lg border-b shadow sm ${
   dark 
     ? "bg-black/60 border-white/10" 
@@ -179,7 +179,7 @@ active:scale-95"
   <div className="w-20 h-1 bg-blue-500 mx-auto mt-3 rounded-full"></div>
 </div>
       {/* TABS */}
-      <div className="flex gap-3 mb-6 overflow-x-auto sm:justify-center px-2 no-scrollbar">
+      <div className="flex gap-3 justify-center mb-6 flex-wrap">
         {tabs.map((tab) => (
           <div
             key={tab}
@@ -198,7 +198,7 @@ ${
       </div>
 
       {/* SEARCH */}
-     <div className={`w-full max-w-2xl mx-auto flex gap-2 px-2 mb-10 px-2 transition-all duration-300 ${
+     <div className={`w-full max-w-2xl mx-auto flex gap-2 mb-10 px-2 transition-all duration-300 ${
   showFloatingSearch ? "opacity-0 pointer-events-none" : "opacity-100"
 }`}>
   <input
@@ -232,7 +232,7 @@ ${dark
           return (
             <div className={`relative p-3 sm:p-5 rounded-2xl border transition-all duration-300 ease-out cursor-pointer
 transform
-hover:-translate-y-2 hover:scale-[1.02] active:scale-95
+hover:-translate-y-2 hover:scale-[1.02]
 hover:border-blue-500
 hover:shadow-[0_25px_50px_rgba(0,0,255,0.25)]
 before:absolute before:inset-0 before:rounded-2xl before:opacity-0 hover:before:opacity-100
@@ -397,9 +397,9 @@ ${dark ? "bg-[#1a1a1a] border-gray-700" : "bg-white border-gray-300"}`}
       setShowFloatingSearch(false);
     }}
     className="fixed bottom-6 right-6 z-50 p-4 rounded-full
-bg-gradient-to-r from-red-500 to-red-700 text-white
-shadow-lg hover:scale-110 active:scale-95 transition-all duration-300"
-    >
+    bg-gradient-to-r from-red-500 to-red-700 text-white
+    shadow-lg hover:scale-110 active:scale-95 transition-all duration-300"
+  >
     🔍
   </button>
 )}
