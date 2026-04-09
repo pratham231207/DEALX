@@ -317,7 +317,9 @@ ${dark ? "bg-[#1a1a1a] border-gray-700" : "bg-white border-gray-300"}`}
 <div className="text-xs text-gray-400 mt-1">
   ⏱ Updated at {product.lastUpdated}
 </div>
-
+<div className="text-xs text-gray-400 mt-2">
+  🔒 Safe redirect to Amazon / Flipkart
+</div>
               <div className="flex gap-2 mt-4">
                 <button
   onClick={() => {
