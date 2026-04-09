@@ -396,7 +396,7 @@ ${dark ? "bg-[#1a1a1a] border-gray-700" : "bg-white border-gray-300"}`}
       window.scrollTo({ top: 0, behavior: "smooth" });
       setShowFloatingSearch(false);
     }}
-    className="fixed bottom-6 right-6 sm:hidden z-50 p-4 rounded-full
+    className="fixed bottom-6 right-6 z-50 p-4 rounded-full
 bg-gradient-to-r from-red-500 to-red-700 text-white
 shadow-lg hover:scale-110 active:scale-95 transition-all duration-300"
     >
