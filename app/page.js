@@ -118,10 +118,10 @@ useEffect(() => {
 
   return (
     <div className={dark 
-  ? "bg-[#121212] text-white min-h-screen px-4 sm:px-6 py-10 pb-24 animate-fade-in" 
-  : "bg-[#eef2f7] text-black min-h-screen px-4 sm:px-6 py-10 pb-24  animate-fade-in"
+  ? "bg-[#121212] text-white min-h-screen px-3 sm:px-6 py-10 pb-24 overflow-x-hidden animate-fade-in" 
+  : "bg-[#eef2f7] text-black min-h-screen px-3 sm:px-6 py-10 pb-24 overflow-x-hidden animate-fade-in"
 }>
-  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-blue-500 opacity-20 blur-3xl rounded-full pointer-events-none"></div>
+  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-blue-500 opacity-20 blur-3xl rounded-full pointer-events-none"></div>
       <div className={`sticky top-0 z-50 backdrop-blur-lg border-b shadow sm ${
   dark 
     ? "bg-black/60 border-white/10" 
@@ -198,7 +198,7 @@ ${
       </div>
 
       {/* SEARCH */}
-     <div className={`w-full max-w-2xl mx-auto flex gap-2 mb-10 px-2 transition-all duration-300 ${
+     <div className={`w-full max-w-2xl mx-auto flex gap-2 px-2 mb-10 px-2 transition-all duration-300 ${
   showFloatingSearch ? "opacity-0 pointer-events-none" : "opacity-100"
 }`}>
   <input
