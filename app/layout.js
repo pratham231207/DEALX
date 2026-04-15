@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "DEALX",
+  title: "DEALX INDIA",
   description: "SHOP AT BEST PRICE",
 };
 
