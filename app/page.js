@@ -1,258 +1,185 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ShoppingCart, Search } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { 
+  ShoppingCart as CartIcon, 
+  Search as SearchIcon, 
+  Sparkles as SparkleIcon,
+  PackageSearch as EmptyIcon,
+  X as CloseIcon 
+} from "lucide-react";
 
 export default function Home() {
-  const [showFloatingSearch, setShowFloatingSearch] = useState(false);
-  const [recentClicks, setRecentClicks] = useState({});
   const [products, setProducts] = useState([]);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [activeTab, setActiveTab] = useState("All");
   const [dark, setDark] = useState(true);
-  const [loaded, setLoaded] = useState(false);
-  const [viewers, setViewers] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isFabOpen, setIsFabOpen] = useState(false);
+  const inputRef = useRef(null);
 
-  const tabs = ["All", "Mobiles", "Laptops", "Appliances", "Audio"];
-
-  // restored original viewer logic
-  useEffect(() => {
-    const updateViewers = () => {
-      const newViewers = {};
-      products.forEach((p, i) => {
-        newViewers[i] = Math.floor(Math.random() * 40) + 10;
-      });
-      setViewers(newViewers);
-    };
-    updateViewers();
-    const interval = setInterval(updateViewers, 4000);
-    return () => clearInterval(interval);
-  }, [products]);
-
-  useEffect(() => {
-    const fetchProducts = async () => {
-      const res = await fetch("/api/products");
-      const data = await res.json();
-      setProducts(data);
-      setResults(data);
-    };
-    fetchProducts();
-    setTimeout(() => setLoaded(true), 200);
-  }, []);
-
-  useEffect(() => {
-    let filtered = products;
-    if (activeTab !== "All") {
-      filtered = filtered.filter((p) => p.category === activeTab);
-    }
-    filtered = filtered.filter((p) =>
-      p.name.toLowerCase().includes(query.toLowerCase())
-    );
-    setResults(filtered);
-  }, [query, activeTab, products]);
+  const tabs = ["All", "Aesthetic Centre", "Mobiles", "Laptops", "Appliances", "Audio"];
 
   useEffect(() => {
     const handleScroll = () => {
-      setShowFloatingSearch(window.scrollY > 200);
+      if (window.scrollY > 400) setIsScrolled(true);
+      else { setIsScrolled(false); setIsFabOpen(false); }
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const getBestDeal = (product) =>
-    product.amazonPrice < product.flipkartPrice
-      ? { platform: "Amazon", price: product.amazonPrice, link: product.amazonLink }
-      : { platform: "Flipkart", price: product.flipkartPrice, link: product.flipkartLink };
+  useEffect(() => {
+    if (isFabOpen && inputRef.current) inputRef.current.focus();
+  }, [isFabOpen]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch("/api/products");
+        const data = await res.json();
+        setProducts(data || []);
+        setResults(data || []);
+      } catch (err) { console.error(err); }
+    };
+    fetchProducts();
+  }, []);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+      let filtered = [...products];
+      if (activeTab === "Aesthetic Centre") filtered = filtered.filter((p) => p.isAesthetic);
+      else if (activeTab !== "All") filtered = filtered.filter((p) => p.category === activeTab);
+      filtered = filtered.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()));
+      setResults(filtered);
+      setIsLoading(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query, activeTab, products]);
+
+  const getBestDeal = (product) => {
+    const offers = [
+      { platform: "Amazon", price: product.amazonPrice, link: product.amazonLink },
+      { platform: "Flipkart", price: product.flipkartPrice, link: product.flipkartLink },
+      { platform: "Myntra", price: product.myntraPrice, link: product.myntraLink },
+      { platform: "Nykaa", price: product.nykaaPrice, link: product.nykaaLink },
+    ].filter(offer => offer.price > 0);
+    return offers.sort((a, b) => a.price - b.price)[0] || { platform: "None", price: 0, link: "#" };
+  };
 
   return (
-    <div className={dark ? "bg-[#121212] text-white min-h-screen px-4 sm:px-6 py-10 animate-fade-in" : "bg-[#eef2f7] text-black min-h-screen px-4 sm:px-6 py-10 animate-fade-in"}>
+    <div className={`relative min-h-screen px-3 pb-24 transition-colors duration-500 ${dark ? "bg-[#0a0a0a] text-white" : "bg-[#f8fafc] text-black"}`}>
       
-      {/* Background Glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-blue-500 opacity-20 blur-3xl rounded-full pointer-events-none"></div>
+      <header className={`sticky top-0 z-50 backdrop-blur-xl border-b -mx-3 mb-6 transition-all ${dark ? "bg-black/40 border-white/5" : "bg-white/60 border-gray-200"}`}>
+        <div className="max-w-7xl mx-auto flex items-center justify-between sm:justify-center px-5 py-3 sm:py-5 relative">
+          <div className="flex items-center gap-2 group cursor-pointer transition-transform hover:scale-105 active:scale-95 touch-none">
+            <CartIcon className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500" />
+            <h1 className="text-lg sm:text-3xl font-bold tracking-tighter uppercase">DEAL<span className="text-blue-500">X</span></h1>
+          </div>
+          <div className="sm:absolute sm:right-8 top-1/2 sm:-translate-y-1/2">
+            <button 
+              onClick={() => setDark(!dark)} 
+              className="text-[9px] font-bold border-2 px-3 py-1 rounded-full uppercase transition-all hover:scale-110 active:scale-90 active:bg-blue-500/20 border-blue-500/20"
+            >
+                {dark ? "LIGHT" : "DARK"}
+            </button>
+          </div>
+        </div>
+      </header>
 
-      {/* STICKY HEADER */}
-<div className={`sticky top-0 z-50 backdrop-blur-lg border-b shadow-sm -mx-4 sm:-mx-6 mb-6 ${dark ? "bg-black/60 border-white/10" : "bg-white/70 border-gray-200"}`}>
-  <div className="max-w-6xl mx-auto flex flex-row sm:flex-col items-center justify-between sm:justify-center px-5 py-3 sm:py-6 relative">
-    
-    {/* Logo Container */}
-    <div className="flex items-center gap-3">
-      <ShoppingCart
-        className={`w-8 h-8 sm:w-16 sm:h-16 text-blue-500 transform transition-all duration-700 ${
-          loaded ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"
-        }`}
-      />
-      <h1
-        className={`text-2xl sm:text-5xl font-extrabold tracking-wide transform transition-all duration-700 hover:scale-105 cursor-pointer ${
-          loaded ? "scale-100 opacity-100" : "scale-75 opacity-0"
-        }`}
-      >
-        Deal<span className="text-blue-500">X</span>
-      </h1>
-    </div>
-
-    {/* Toggle Button - Absolute on desktop to keep logo centered */}
-    <div className="sm:absolute sm:right-6 sm:top-1/2 sm:-translate-y-1/2">
-      <button 
-        onClick={() => setDark(!dark)} 
-        className="px-3 py-1 border rounded-lg transition-all hover:bg-blue-500 hover:text-white active:scale-95 text-xs sm:text-sm font-medium"
-      >
-        {dark ? "Light" : "Dark"}
-      </button>
-    </div>
-
-  </div>
-</div>
-
-      <div className="max-w-6xl mx-auto">
-        {/* HERO */}
-        <div className="text-center mt-6 mb-4">
-          <h2 className="text-2xl md:text-4xl font-extrabold tracking-tight">
-            Find the <span className="text-blue-500">Best Deals</span> Instantly
+      <main className="relative z-10 max-w-7xl mx-auto">
+        <div className="text-center mb-8 mt-2 sm:mt-4">
+          <h2 className="text-lg sm:text-2xl font-bold tracking-tight leading-tight uppercase">
+            FIND THE <span className="text-blue-500">BEST DEALS</span> INSTANTLY
           </h2>
-          <p className="text-gray-400 font-semibold mt-1 text-sm sm:text-base">Compare Amazon & Flipkart prices in seconds</p>
-          <div className="w-20 h-1 bg-blue-500 mx-auto mt-3 rounded-full"></div>
+          <p className="text-gray-500 font-bold mt-1.5 text-[7px] sm:text-[10px] uppercase tracking-[0.4em]">Compare • Click • Save</p>
         </div>
 
-        {/* TABS */}
-        <div className="flex gap-2 sm:gap-3 justify-center mb-6 flex-wrap">
+        <div className="flex gap-2 justify-start sm:justify-center mb-10 overflow-x-auto pb-3 no-scrollbar px-4">
           {tabs.map((tab) => (
-            <div
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-bold rounded-full cursor-pointer border transition-all duration-300 transform ${
-                activeTab === tab
-                  ? "bg-red-500 text-white border-red-500 shadow-md scale-105"
-                  : "bg-blue-500 text-white border-blue-500 hover:-translate-y-1 hover:shadow-lg"
+            <button 
+              key={tab} 
+              onClick={() => setActiveTab(tab)} 
+              className={`whitespace-nowrap px-5 py-2 text-[9px] sm:text-[11px] font-bold rounded-full border-2 transition-all duration-300 hover:scale-105 active:scale-95 active:opacity-80 ${
+                activeTab === tab ? "bg-blue-600 border-blue-500 text-white shadow-lg" : (dark ? "bg-transparent border-white/10 text-gray-400" : "bg-white border-black/5 text-gray-500")
               }`}
             >
-              {tab}
-            </div>
+              {tab === "Aesthetic Centre" && <SparkleIcon className="w-3 h-3 inline mr-1" />} {tab.toUpperCase()}
+            </button>
           ))}
         </div>
 
-        {/* SEARCH BAR WITH ENHANCED MICRO-INTERACTIONS */}
-<div className={`w-full max-w-2xl mx-auto flex gap-2 mb-10 px-2 transition-all duration-500 ease-in-out
-  ${showFloatingSearch ? "opacity-0 pointer-events-none translate-y-4" : "opacity-100 translate-y-0"}
-`}>
-  
-  {/* The Search Input Wrapper */}
-  <div className={`flex-1 flex items-center rounded-xl border transition-all duration-300 transform 
-    hover:-translate-y-1 hover:shadow-xl group
-    ${dark 
-      ? "bg-[#1a1a1a] border-gray-700 focus-within:border-blue-500 focus-within:shadow-[0_0_20px_rgba(59,130,246,0.2)]" 
-      : "bg-white border-gray-300 focus-within:border-blue-500 focus-within:shadow-[0_0_20px_rgba(0,0,0,0.1)]"
-    }`}
-  >
-    <input
-      placeholder="Search products..."
-      value={query}
-      onChange={(e) => setQuery(e.target.value)}
-      className="w-full bg-transparent px-5 py-3 text-sm sm:text-base outline-none rounded-xl"
-    />
-  </div>
-
-  {/* The "Soft Click" Search Button */}
-  <button className="px-6 py-2 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-bold 
-    transition-all duration-200 
-    hover:scale-105 hover:shadow-lg 
-    active:scale-90 active:brightness-90 active:shadow-inner
-    focus:outline-none"
-  >
-    Search
-  </button>
-</div>
-
-        {/* PRODUCTS GRID */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {results.map((product, index) => {
-            const best = getBestDeal(product);
-            const higher = Math.max(product.amazonPrice, product.flipkartPrice);
-            const lower = Math.min(product.amazonPrice, product.flipkartPrice);
-            const savings = higher - lower;
-
-            return (
-              <div key={index} className={`relative p-4 sm:p-5 rounded-2xl border transition-all duration-300 ease-out cursor-pointer transform hover:-translate-y-2 hover:border-blue-500 hover:shadow-[0_25px_50px_rgba(0,0,255,0.15)] 
-                before:absolute before:inset-0 before:rounded-2xl before:opacity-0 hover:before:opacity-100 before:pointer-events-none before:transition before:duration-300 
-                before:bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.1),transparent_70%)] 
-                ${dark ? "bg-[#1a1a1a] border-gray-700" : "bg-white border-gray-300"}`}>
-                
-                <div className="flex gap-4 items-center">
-                  <img src={product.image} className="w-20 h-20 sm:w-28 sm:h-28 rounded-md object-cover transition-transform duration-300 hover:scale-110" />
-                  <h2 className="text-sm sm:text-lg font-semibold hover:text-blue-500 transition line-clamp-2">{product.name}</h2>
-                </div>
-
-                {/* PRICES ROW */}
-                <div className="flex justify-between items-start mt-4 font-extrabold gap-2">
-                  <div className="flex flex-col">
-                    <span className={`text-base sm:text-lg ${product.amazonPrice > product.flipkartPrice ? "line-through opacity-60 text-red-500" : "text-green-500"}`}>
-                      Amazon ₹{product.amazonPrice}
-                    </span>
-                    {best.platform === "Amazon" && <span className="text-[10px] bg-green-500 text-white px-2 py-0.5 rounded-md mt-1 w-max">🔥 Best</span>}
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className={`text-base sm:text-lg ${product.flipkartPrice > product.amazonPrice ? "line-through opacity-60 text-red-500" : "text-green-500"}`}>
-                      Flipkart ₹{product.flipkartPrice}
-                    </span>
-                    {best.platform === "Flipkart" && <span className="text-[10px] bg-green-500 text-white px-2 py-0.5 rounded-md mt-1 w-max">🔥 Best</span>}
-                  </div>
-                </div>
-
-                {/* ALERTS & SAVINGS */}
-                <div className="mt-2 space-y-0.5">
-                  {savings > 0 && <div className="text-blue-500 text-xs font-semibold">You save ₹{savings}</div>}
-                  {product.previousPrice && Math.min(product.amazonPrice, product.flipkartPrice) < product.previousPrice && (
-                    <div className="text-red-500 text-xs font-semibold">🔻 Price dropped ₹{product.previousPrice - Math.min(product.amazonPrice, product.flipkartPrice)}</div>
-                  )}
-                  <div className="text-[10px] sm:text-xs text-blue-500 font-semibold pt-1">👆 {recentClicks[product.name] || 0} clicks recently</div>
-                  <div className="text-[10px] text-green-700">⚡ Price checked across platforms</div>
-                  <div className="text-[10px] text-gray-500">⏱ Updated {product.lastUpdated}</div>
-                </div>
-
-               {/* BUTTONS GRID (3 columns) with Soft Click Effects */}
-<div className="grid grid-cols-3 gap-2 mt-4">
-  <button 
-    onClick={() => window.open(product.amazonLink, "_blank")} 
-    className="py-2.5 rounded-xl bg-blue-600 text-white text-[10px] sm:text-xs font-bold 
-      transition-all duration-150 
-      hover:scale-105 hover:bg-blue-500 hover:shadow-md
-      active:scale-95 active:brightness-90 active:shadow-inner"
-  >
-    Amazon
-  </button>
-  
-  <button 
-    onClick={() => window.open(product.flipkartLink, "_blank")} 
-    className="py-2.5 rounded-xl bg-blue-600 text-white text-[10px] sm:text-xs font-bold 
-      transition-all duration-150 
-      hover:scale-105 hover:bg-blue-500 hover:shadow-md
-      active:scale-95 active:brightness-90 active:shadow-inner"
-  >
-    Flipkart
-  </button>
-  
-  <button 
-    onClick={() => window.open(best.link, "_blank")} 
-    className="py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-red-800 text-white text-[10px] sm:text-xs font-bold 
-      transition-all duration-150 
-      hover:scale-105 hover:shadow-lg shadow-red-900/20
-      active:scale-95 active:brightness-90 active:shadow-inner"
-  >
-    Buy
-  </button>
-</div>
-              </div>
-            );
-          })}
+        {/* TOP SEARCH BAR */}
+        <div className={`w-full max-w-3xl mx-auto mb-16 px-4 transition-all duration-500 ${isScrolled ? "opacity-0 pointer-events-none -translate-y-10" : "opacity-100"}`}>
+            <div className={`flex items-center rounded-2xl border-2 p-1 transition-all duration-300 focus-within:border-blue-500 ${dark ? "bg-white/5 border-white/10" : "bg-white border-black/10 shadow-sm"}`}>
+              <SearchIcon className={`ml-5 w-4 h-4 text-gray-400 ${isLoading ? "animate-spin text-blue-500" : ""}`} />
+              <input placeholder="Search products..." value={query} onChange={(e) => setQuery(e.target.value)} className="w-full bg-transparent px-4 py-2 text-sm sm:text-base font-bold outline-none placeholder:text-gray-600" />
+              <button className="hidden sm:block bg-red-600 hover:bg-red-700 active:scale-95 text-white px-8 py-2.5 rounded-xl font-bold transition-all mr-1">{isLoading ? "..." : "Search"}</button>
+            </div>
         </div>
-      </div>
 
-      {/* FLOATING ACTION */}
-      {showFloatingSearch && (
-        <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="fixed bottom-6 right-6 z-50 p-4 rounded-full bg-red-600 text-white shadow-lg hover:scale-110 active:scale-95 transition-all">
-          <Search size={20} />
-        </button>
-      )}
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 animate-pulse text-gray-500 font-bold uppercase tracking-widest text-xs">Finding deals...</div>
+        ) : results.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in duration-500">
+            <EmptyIcon className="w-12 h-12 text-gray-600 mb-4" />
+            <h3 className="text-xl font-bold uppercase tracking-tighter">No items found</h3>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-8 px-4">
+            {results.map((product, index) => {
+              const best = getBestDeal(product);
+              return (
+                <div key={index} className={`group relative p-3 sm:p-6 rounded-[2.5rem] border transition-all duration-500 flex flex-col justify-between hover:-translate-y-3 active:scale-[0.98] ${dark ? "bg-[#111] border-white/5 hover:border-blue-500/40" : "bg-white border-black/5 hover:border-blue-500/20"}`}>
+                  <div className="flex flex-col gap-2 items-center text-center">
+                    <div className="relative overflow-hidden rounded-[1.5rem] bg-white p-2 w-full sm:aspect-square aspect-[4/3] flex items-center justify-center">
+                      <img src={product.image} className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-110" alt={product.name} />
+                    </div>
+                    <h2 className="text-[10px] sm:text-sm font-bold line-clamp-2 leading-tight h-8 sm:h-10">{product.name}</h2>
+                  </div>
+                  
+                  <div className="mt-4 border-t border-white/5 pt-3 flex flex-col sm:flex-row justify-between items-center sm:items-end gap-3">
+                    <div className="flex flex-col items-center sm:items-start">
+                      <span className="text-lg sm:text-2xl font-bold text-green-500 tracking-tighter">₹{best.price}</span>
+                      <span className="text-[7px] sm:text-[10px] text-gray-500 font-bold uppercase tracking-widest">ON {best.platform}</span>
+                    </div>
+                    <button 
+                      onClick={() => window.open(best.link, "_blank")} 
+                      className="w-full sm:w-auto bg-red-600 text-white px-3 py-2 sm:px-5 sm:py-2.5 rounded-xl text-[9px] sm:text-[11px] font-bold transition-all hover:bg-red-700 active:scale-90 active:brightness-110 shadow-md"
+                    >
+                      GRAB DEAL
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* FLOATING ACTION SEARCH */}
+        <div className={`fixed bottom-8 right-8 z-[100] transition-all duration-700 ${isScrolled ? "translate-y-0 opacity-100 scale-100" : "translate-y-20 opacity-0 scale-50"}`}>
+          <div className={`flex items-center bg-blue-600 shadow-[0_10px_40px_rgba(37,99,235,0.5)] border border-white/20 backdrop-blur-md rounded-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] overflow-hidden ${isFabOpen ? "w-[280px] sm:w-[450px] h-14" : "w-14 h-14"}`}>
+            <button 
+              onClick={() => setIsFabOpen(!isFabOpen)} 
+              className="flex-shrink-0 w-14 h-14 flex items-center justify-center text-white hover:bg-white/10 active:scale-75 transition-all"
+            >
+              {isFabOpen ? <CloseIcon className="w-6 h-6" /> : <SearchIcon className="w-6 h-6" />}
+            </button>
+            <input 
+              ref={inputRef} 
+              type="text" 
+              placeholder="Search deals..." 
+              value={query} 
+              onChange={(e) => setQuery(e.target.value)} 
+              className={`bg-transparent text-white font-bold placeholder:text-blue-100 outline-none w-full transition-all duration-500 ${isFabOpen ? "px-2 opacity-100" : "w-0 opacity-0"}`} 
+            />
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
