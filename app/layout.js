@@ -16,7 +16,11 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: "DEALX INDIA",
+<<<<<<< HEAD
   description: "SHOP AT BETTER PRICES",
+=======
+  description: "SHOP AT BEST PRICE",
+>>>>>>> 6318cde7618059ece6f2f1bbac7333ee97b25bd2
 };
 
 export default function RootLayout({ children }) {
