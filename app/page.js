@@ -45,10 +45,24 @@ export default function Home() {
 
   const isAestheticMode = activeTab === "Aesthetic Centre";
 
+  // Change 'heroImages' to 'heroSlides'
+// Change 'heroImages' to 'heroSlides'
   const heroSlides = [
-    { title: "The Aesthetic Edit", sub: "Minimalist Tech & Decor", img: "https://images.unsplash.com/photo-1491933382434-500287f9b54b?q=80&w=1664&auto=format&fit=crop" },
-    { title: "Ultimate Workstations", sub: "M3 Macbooks at Scraped Prices", img: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=1652&auto=format&fit=crop" },
-    { title: "Studio Sound", sub: "Sony XM5 Premium Deals", img: "https://images.unsplash.com/photo-1546435770-a3e426da473b?q=80&w=1670&auto=format&fit=crop" }
+    { 
+      title: "The Aesthetic Edit", 
+      sub: "Minimalist Tech & Decor", 
+      img: "https://images.unsplash.com/photo-1491933382434-500287f9b54b?q=80&w=1664&auto=format&fit=crop" 
+    },
+    { 
+      title: "Ultimate Workstations", 
+      sub: "M3 Macbooks at Scraped Prices", 
+      img: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=1652&auto=format&fit=crop" 
+    },
+    { 
+    title: "Marshall Sound", 
+    sub: "Vintage Design, Modern Power", 
+    img: "https://images.unsplash.com/photo-1502798985865-1ab60332f46c?q=80&w=1332&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" 
+  }
   ];
 
   const softAppleSpring = { 
