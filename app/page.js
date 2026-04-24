@@ -537,7 +537,7 @@ export default function Home() {
                     <div className={`mt-3 sm:mt-4 border-t pt-2 sm:pt-3 flex flex-col sm:flex-row justify-between items-center sm:items-end gap-2 sm:gap-3 ${isAestheticMode ? "border-[#D6D2C4]" : (dark ? "border-white/5" : "border-black/5")}`}>
                       <div className="flex flex-row justify-between w-full sm:w-auto sm:flex-col items-center sm:items-start">
                         <span className={`text-[13px] sm:text-2xl font-bold tracking-tighter ${isAestheticMode ? "text-[#8E8475]" : (dark ? "text-green-500" : "text-green-600")}`}>₹{best.price.toLocaleString('en-IN')}</span>
-                        <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.2em] opacity-40">on {best.platform}</span>
+                        <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.2em] opacity-40"> {best.platform}</span>
                       </div>
                       <motion.button 
                         whileHover={{ scale: 1.04 }} 
