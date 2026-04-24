@@ -503,8 +503,6 @@ export default function Home() {
                     initial={{ opacity: 0, y: 20 }} 
                     animate={{ opacity: 1, y: 0 }} 
                     onDoubleClick={() => setSelectedProduct(product)}
-                    onTouchStart={() => handleTouchStart(product)}
-                    onTouchEnd={handleTouchEnd}
                     whileHover={{ 
                         y: -10, 
                         scale: 1.02,
