@@ -19,7 +19,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu as MenuIcon,
-  ExternalLink 
+  ExternalLink,
+  Plus,
+  Watch,
+  Camera,
+  Gamepad2,
+  Home as HomeIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -36,10 +41,12 @@ export default function Home() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isFabOpen, setIsFabOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false); 
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestionContainerRef = useRef(null);
+  const moreMenuRef = useRef(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
@@ -126,7 +133,15 @@ export default function Home() {
     { name: "Mobiles", icon: <Smartphone className="w-3 h-3 mr-1" /> },
     { name: "Laptops", icon: <Laptop className="w-3 h-3 mr-1" /> },
     { name: "Appliances", icon: <Tv className="w-3 h-3 mr-1" /> },
-    { name: "Audio", icon: <Headphones className="w-3 h-3 mr-1" /> }
+    { name: "Audio", icon: <Headphones className="w-3 h-3 mr-1" /> },
+    { name: "More", icon: <Plus className="w-3 h-3 mr-1" />, isDropdown: true }
+  ];
+
+  const moreCategories = [
+    { name: "Watches", icon: <Watch className="w-3 h-3 mr-1" /> },
+    { name: "Cameras", icon: <Camera className="w-3 h-3 mr-1" /> },
+    { name: "Gaming", icon: <Gamepad2 className="w-3 h-3 mr-1" /> },
+    { name: "Home", icon: <HomeIcon className="w-3 h-3 mr-1" /> }
   ];
 
   const isAestheticMode = activeTab === "Aesthetic Centre";
@@ -143,6 +158,9 @@ export default function Home() {
     const handleClickOutside = (e) => {
       if (suggestionContainerRef.current && !suggestionContainerRef.current.contains(e.target)) {
         setShowSuggestions(false);
+      }
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) {
+        setIsMoreOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -205,7 +223,9 @@ export default function Home() {
 
       let filtered = [...products];
       if (activeTab === "Aesthetic Centre") filtered = filtered.filter((p) => p.isAesthetic);
-      else if (activeTab !== "All") filtered = filtered.filter((p) => p.category === activeTab);
+      else if (activeTab !== "All" && activeTab !== "More") {
+          filtered = filtered.filter((p) => p.category === activeTab);
+      }
       filtered = filtered.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()));
       setResults(filtered);
       setIsSearching(false);
@@ -235,16 +255,6 @@ export default function Home() {
   const handleShare = (name, link) => {
     navigator.clipboard.writeText(`Check out this deal on ${name}: ${link} - Shared via DealX`);
     alert("Deal link copied to clipboard!");
-  };
-
-  const handleTouchStart = (product) => {
-    longPressTimer.current = setTimeout(() => {
-      setSelectedProduct(product);
-    }, 600);
-  };
-
-  const handleTouchEnd = () => {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
   };
 
   return (
@@ -343,12 +353,6 @@ export default function Home() {
                 </div>
               </motion.div>
             </AnimatePresence>
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 hidden sm:flex flex-col items-center gap-1 opacity-70">
-                <span className="text-white text-[9px] font-black uppercase tracking-[0.3em] drop-shadow-md">Scroll down to search</span>
-                <motion.div animate={{ y: [0, 8, 0] }} transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}>
-                    <ChevronDown className="text-white w-6 h-6 drop-shadow-md" />
-                </motion.div>
-            </div>
           </div>
         </div>
 
@@ -362,24 +366,54 @@ export default function Home() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="flex gap-2 justify-start sm:justify-center overflow-x-auto pb-4 no-scrollbar px-4"
+                className="flex gap-2 justify-start sm:justify-center overflow-x-visible pb-4 px-4"
               >
                 {tabs.map((tab, i) => (
-                  <motion.button 
-                    key={tab.name} 
-                    transition={{ ...softAppleSpring, delay: i * 0.05 }}
-                    whileHover={{ y: -4, scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setActiveTab(tab.name)} 
-                    className={`flex items-center whitespace-nowrap px-5 sm:px-6 py-2.5 sm:py-3 text-[9px] sm:text-[11px] font-bold rounded-full border-2 transition-colors duration-300 ${
-                      activeTab === tab.name 
-                        ? (tab.name === "Aesthetic Centre" ? "bg-[#A89F91] border-[#8E8475] text-white shadow-lg" : "bg-blue-600 border-blue-500 text-white shadow-lg") 
-                        : (isAestheticMode 
-                            ? "border-[#D6D2C4] text-[#A89F91] bg-white/50" 
-                            : (dark ? "bg-transparent border-white/10 text-gray-400" : "bg-white border-black/5 text-gray-500 shadow-sm"))
-                    }`}>
-                    {tab.icon} {tab.name.toUpperCase()}
-                  </motion.button>
+                  <div key={tab.name} className="relative flex-shrink-0">
+                    <motion.button 
+                      transition={{ ...softAppleSpring, delay: i * 0.05 }}
+                      whileHover={{ y: -4, scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => tab.isDropdown ? setIsMoreOpen(!isMoreOpen) : setActiveTab(tab.name)} 
+                      className={`flex items-center whitespace-nowrap px-5 sm:px-6 py-2.5 sm:py-3 text-[9px] sm:text-[11px] font-bold rounded-full border-2 transition-colors duration-300 ${
+                        activeTab === tab.name || (tab.isDropdown && moreCategories.some(c => c.name === activeTab))
+                          ? (tab.name === "Aesthetic Centre" ? "bg-[#A89F91] border-[#8E8475] text-white shadow-lg" : "bg-blue-600 border-blue-500 text-white shadow-lg") 
+                          : (isAestheticMode 
+                              ? "border-[#D6D2C4] text-[#A89F91] bg-white/50" 
+                              : (dark ? "bg-transparent border-white/10 text-gray-400" : "bg-white border-black/5 text-gray-500 shadow-sm"))
+                      }`}>
+                      {tab.icon} {tab.isDropdown && moreCategories.some(c => c.name === activeTab) ? activeTab.toUpperCase() : tab.name.toUpperCase()}
+                      {tab.isDropdown && <ChevronDown className={`ml-1 w-3 h-3 transition-transform ${isMoreOpen ? 'rotate-180' : ''}`} />}
+                    </motion.button>
+
+                    {tab.isDropdown && (
+                      <AnimatePresence>
+                        {isMoreOpen && (
+                          <motion.div
+                            ref={moreMenuRef}
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            className={`absolute top-full left-0 mt-3 z-[150] min-w-[180px] p-2 rounded-2xl border shadow-2xl backdrop-blur-3xl ${
+                              isAestheticMode ? "bg-white/95 border-[#D6D2C4]" : (dark ? "bg-black/95 border-white/10" : "bg-white/95 border-black/10")
+                            }`}
+                          >
+                            {moreCategories.map((cat) => (
+                              <button
+                                key={cat.name}
+                                onClick={() => { setActiveTab(cat.name); setIsMoreOpen(false); }}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${
+                                  activeTab === cat.name ? (isAestheticMode ? "bg-[#4A4238] text-white" : "bg-blue-600 text-white") : "hover:bg-white/10 text-gray-400"
+                                }`}
+                              >
+                                {cat.icon} {cat.name}
+                              </button>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    )}
+                  </div>
                 ))}
               </motion.div>
             ) : (
@@ -411,13 +445,13 @@ export default function Home() {
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className={`absolute top-full left-0 mt-2 min-w-[180px] sm:min-w-[220px] p-2 rounded-[2rem] border shadow-2xl backdrop-blur-3xl overflow-hidden ${
+                      className={`absolute top-full left-0 mt-2 min-w-[200px] max-h-[60vh] overflow-y-auto no-scrollbar p-2 rounded-[2rem] border shadow-2xl backdrop-blur-3xl z-[150] ${
                         isAestheticMode 
                           ? "bg-white/95 border-[#D6D2C4]" 
-                          : (dark ? "bg-black/90 border-white/10" : "bg-white/90 border-black/5")
+                          : (dark ? "bg-black/95 border-white/10" : "bg-white/95 border-black/5")
                       }`}
                     >
-                      {tabs.map((tab) => (
+                      {[...tabs.filter(t => !t.isDropdown), ...moreCategories].map((tab) => (
                         <button
                           key={tab.name}
                           onClick={() => {
@@ -425,7 +459,7 @@ export default function Home() {
                             setIsMenuOpen(false);
                             window.scrollTo({ top: 450, behavior: 'smooth' });
                           }}
-                          className={`w-full flex items-center gap-3 px-5 py-3.5 sm:py-4 rounded-2xl text-[9px] sm:text-[10px] font-black uppercase transition-all ${
+                          className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-[9px] sm:text-[10px] font-black uppercase transition-all ${
                             activeTab === tab.name 
                               ? (isAestheticMode ? "bg-[#4A4238] text-white" : "bg-blue-600 text-white") 
                               : (dark ? "text-gray-400 hover:bg-white/10" : "text-gray-600 hover:bg-black/5")
@@ -448,7 +482,7 @@ export default function Home() {
           whileInView={{ opacity: 1, scale: 1, y: 0 }}
           viewport={{ once: true }}
           transition={softAppleSpring}
-          className={`relative z-[120] w-full max-w-3xl mx-auto mb-16 px-4 transition-all duration-700 ${isScrolled ? "opacity-0 pointer-events-none -translate-y-10" : "opacity-100"}`}
+          className={`relative z-[10] w-full max-w-3xl mx-auto mb-16 px-4 transition-all duration-700 ${isScrolled ? "opacity-0 pointer-events-none -translate-y-10" : "opacity-100"}`}
         >
             <motion.div whileFocusWithin={{ scale: 1.01 }} transition={softAppleSpring} className={`flex items-center rounded-[2rem] border-2 p-1.5 transition-colors duration-300 focus-within:border-blue-500 ${isAestheticMode ? "bg-[#EAE7DD] border-[#D6D2C4]" : (dark ? "bg-white/5 border-white/10" : "bg-white border-black/10 shadow-sm")}`}>
               <SearchIcon className="ml-5 w-4 h-4 text-gray-400" />
@@ -548,6 +582,28 @@ export default function Home() {
                       >
                         GRAB DEAL
                       </motion.button>
+                      {/* VERIFIED BADGE WITH MIRROR EFFECT */}
+<div className="absolute bottom-2 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-2 group-hover:translate-y-0 pointer-events-none">
+  <div className="relative flex flex-col items-center">
+    {/* Main Badge */}
+    <div className={`flex items-center gap-1 px-3 py-1 rounded-full backdrop-blur-md border text-[8px] font-black uppercase tracking-[0.2em] shadow-lg ${
+      isAestheticMode 
+      ? "bg-white/80 border-[#8E8475]/20 text-[#8E8475]" 
+      : "bg-green-500/20 border-green-500/30 text-green-400"
+    }`}>
+      <ShieldCheck className="w-2.5 h-2.5" />
+      Verified Deal
+    </div>
+    
+    {/* Mirror/Reflection Effect */}
+    <div className={`absolute top-full mt-0.5 flex items-center gap-1 px-3 py-1 opacity-20 blur-[1px] scale-y-[-1] select-none ${
+      isAestheticMode ? "text-[#8E8475]" : "text-green-400"
+    }`}>
+      <ShieldCheck className="w-2.5 h-2.5" />
+      Verified Deal
+    </div>
+  </div>
+</div>
                     </div>
                   </motion.div>
                 );
