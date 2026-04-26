@@ -52,12 +52,10 @@ export default function Home() {
   const [isMobile, setIsMobile] = useState(false);
   
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const longPressTimer = useRef(null);
 
   const inputRef = useRef(null);
   const searchContainerRef = useRef(null);
 
-  // --- CORE LOGIC: FIND BEST DEAL ---
   const getBestDeal = (product) => {
     if (!product) return { platform: "None", price: 0, link: "#", savings: 0 };
     const offers = [
@@ -310,7 +308,21 @@ export default function Home() {
                       <CartIcon className="w-4 h-4" />
                       Grab Deal @ ₹{getBestDeal(selectedProduct).price.toLocaleString('en-IN')}
                     </motion.button>
+                    {/* VERIFIED BADGE */}
+                      <div className="absolute bottom-2 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-2 group-hover:translate-y-0 pointer-events-none">
+                        <div className="relative flex flex-col items-center">
+                          <div className={`flex items-center gap-1 px-3 py-1 rounded-full backdrop-blur-md border text-[8px] font-black uppercase tracking-[0.2em] shadow-lg ${
+                            isAestheticMode 
+                            ? "bg-white/80 border-[#8E8475]/20 text-[#8E8475]" 
+                            : "bg-green-500/20 border-green-500/30 text-green-400"
+                          }`}>
+                            <ShieldCheck className="w-2.5 h-2.5" />
+                            Verified Deal
+                          </div>
+                        </div>
+                      </div>
                 </div>
+                
                 
                 <button 
                   onClick={() => setSelectedProduct(null)}
@@ -351,6 +363,25 @@ export default function Home() {
                   <motion.h2 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="text-white text-2xl sm:text-6xl font-black uppercase tracking-tighter leading-[0.9] sm:leading-[0.85] mb-3 sm:mb-4">{heroSlides[currentHeroIndex].title}</motion.h2>
                   <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="text-white/50 text-[9px] sm:text-sm font-bold uppercase tracking-widest">{heroSlides[currentHeroIndex].sub}</motion.p>
                 </div>
+
+                <AnimatePresence>
+                  {!isScrolled && (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 z-20"
+                    >
+                      <span className="text-[7px] sm:text-[9px] font-black uppercase tracking-[0.4em] text-white/60">Scroll to Search</span>
+                      <motion.div
+                        animate={{ y: [0, 6, 0] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-white/60" />
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             </AnimatePresence>
           </div>
@@ -366,55 +397,62 @@ export default function Home() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="flex gap-2 justify-start sm:justify-center overflow-x-visible pb-4 px-4"
+                className="w-full flex sm:justify-center z-[100]"
               >
-                {tabs.map((tab, i) => (
-                  <div key={tab.name} className="relative flex-shrink-0">
-                    <motion.button 
-                      transition={{ ...softAppleSpring, delay: i * 0.05 }}
-                      whileHover={{ y: -4, scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => tab.isDropdown ? setIsMoreOpen(!isMoreOpen) : setActiveTab(tab.name)} 
-                      className={`flex items-center whitespace-nowrap px-5 sm:px-6 py-2.5 sm:py-3 text-[9px] sm:text-[11px] font-bold rounded-full border-2 transition-colors duration-300 ${
-                        activeTab === tab.name || (tab.isDropdown && moreCategories.some(c => c.name === activeTab))
-                          ? (tab.name === "Aesthetic Centre" ? "bg-[#A89F91] border-[#8E8475] text-white shadow-lg" : "bg-blue-600 border-blue-500 text-white shadow-lg") 
-                          : (isAestheticMode 
-                              ? "border-[#D6D2C4] text-[#A89F91] bg-white/50" 
-                              : (dark ? "bg-transparent border-white/10 text-gray-400" : "bg-white border-black/5 text-gray-500 shadow-sm"))
-                      }`}>
-                      {tab.icon} {tab.isDropdown && moreCategories.some(c => c.name === activeTab) ? activeTab.toUpperCase() : tab.name.toUpperCase()}
-                      {tab.isDropdown && <ChevronDown className={`ml-1 w-3 h-3 transition-transform ${isMoreOpen ? 'rotate-180' : ''}`} />}
-                    </motion.button>
-
-                    {tab.isDropdown && (
-                      <AnimatePresence>
-                        {isMoreOpen && (
-                          <motion.div
-                            ref={moreMenuRef}
-                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                            className={`absolute top-full left-0 mt-3 z-[150] min-w-[180px] p-2 rounded-2xl border shadow-2xl backdrop-blur-3xl ${
-                              isAestheticMode ? "bg-white/95 border-[#D6D2C4]" : (dark ? "bg-black/95 border-white/10" : "bg-white/95 border-black/10")
-                            }`}
-                          >
-                            {moreCategories.map((cat) => (
-                              <button
-                                key={cat.name}
-                                onClick={() => { setActiveTab(cat.name); setIsMoreOpen(false); }}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${
-                                  activeTab === cat.name ? (isAestheticMode ? "bg-[#4A4238] text-white" : "bg-blue-600 text-white") : "hover:bg-white/10 text-gray-400"
-                                }`}
-                              >
-                                {cat.icon} {cat.name}
-                              </button>
-                            ))}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    )}
+                <div className="relative w-full sm:w-fit">
+                  <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 py-2">
+                    {tabs.map((tab, i) => (
+                      <div key={tab.name} className="relative flex-shrink-0">
+                        <motion.button 
+                          transition={{ ...softAppleSpring, delay: i * 0.05 }}
+                          whileHover={{ y: -4, scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => tab.isDropdown ? setIsMoreOpen(!isMoreOpen) : setActiveTab(tab.name)} 
+                          className={`flex items-center whitespace-nowrap px-5 sm:px-6 py-2.5 sm:py-3 text-[9px] sm:text-[11px] font-bold rounded-full border-2 transition-colors duration-300 ${
+                            activeTab === tab.name || (tab.isDropdown && moreCategories.some(c => c.name === activeTab))
+                              ? (tab.name === "Aesthetic Centre" ? "bg-[#A89F91] border-[#8E8475] text-white shadow-lg" : "bg-blue-600 border-blue-500 text-white shadow-lg") 
+                              : (isAestheticMode 
+                                  ? "border-[#D6D2C4] text-[#A89F91] bg-white/50" 
+                                  : (dark ? "bg-transparent border-white/10 text-gray-400" : "bg-white border-black/5 text-gray-500 shadow-sm"))
+                          }`}>
+                          {tab.icon} {tab.isDropdown && moreCategories.some(c => c.name === activeTab) ? activeTab.toUpperCase() : tab.name.toUpperCase()}
+                          {tab.isDropdown && <ChevronDown className={`ml-1 w-3 h-3 transition-transform ${isMoreOpen ? 'rotate-180' : ''}`} />}
+                        </motion.button>
+                      </div>
+                    ))}
                   </div>
-                ))}
+
+                 <AnimatePresence>
+  {isMoreOpen && (
+    <motion.div
+      ref={moreMenuRef}
+      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+      /* 
+         FIX: Added 'right-4' for mobile and 'sm:right-0' for desktop.
+         This forces the menu to stick to the right edge of the padding 
+         rather than floating based on the scroll position of the tabs.
+      */
+      className={`absolute top-full right-4 sm:right-0 mt-2 z-[2500] min-w-[180px] max-h-[50vh] overflow-y-auto no-scrollbar p-2 rounded-2xl border shadow-2xl backdrop-blur-3xl ${
+        isAestheticMode ? "bg-white/95 border-[#D6D2C4]" : (dark ? "bg-black/95 border-white/10" : "bg-white/95 border-black/10")
+      }`}
+    >
+      {moreCategories.map((cat) => (
+        <button
+          key={cat.name}
+          onClick={() => { setActiveTab(cat.name); setIsMoreOpen(false); }}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${
+            activeTab === cat.name ? (isAestheticMode ? "bg-[#4A4238] text-white" : "bg-blue-600 text-white") : "hover:bg-white/10 text-gray-400"
+          }`}
+        >
+          {cat.icon} {cat.name}
+        </button>
+      ))}
+    </motion.div>
+  )}
+</AnimatePresence>
+                </div>
               </motion.div>
             ) : (
               <motion.div 
@@ -482,7 +520,7 @@ export default function Home() {
           whileInView={{ opacity: 1, scale: 1, y: 0 }}
           viewport={{ once: true }}
           transition={softAppleSpring}
-          className={`relative z-[10] w-full max-w-3xl mx-auto mb-16 px-4 transition-all duration-700 ${isScrolled ? "opacity-0 pointer-events-none -translate-y-10" : "opacity-100"}`}
+          className={`relative z-[1] w-full max-w-3xl mx-auto mb-16 px-4 transition-all duration-700 ${isScrolled ? "opacity-0 pointer-events-none -translate-y-10" : "opacity-100"}`}
         >
             <motion.div whileFocusWithin={{ scale: 1.01 }} transition={softAppleSpring} className={`flex items-center rounded-[2rem] border-2 p-1.5 transition-colors duration-300 focus-within:border-blue-500 ${isAestheticMode ? "bg-[#EAE7DD] border-[#D6D2C4]" : (dark ? "bg-white/5 border-white/10" : "bg-white border-black/10 shadow-sm")}`}>
               <SearchIcon className="ml-5 w-4 h-4 text-gray-400" />
@@ -582,28 +620,6 @@ export default function Home() {
                       >
                         GRAB DEAL
                       </motion.button>
-                      {/* VERIFIED BADGE WITH MIRROR EFFECT */}
-<div className="absolute bottom-2 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-2 group-hover:translate-y-0 pointer-events-none">
-  <div className="relative flex flex-col items-center">
-    {/* Main Badge */}
-    <div className={`flex items-center gap-1 px-3 py-1 rounded-full backdrop-blur-md border text-[8px] font-black uppercase tracking-[0.2em] shadow-lg ${
-      isAestheticMode 
-      ? "bg-white/80 border-[#8E8475]/20 text-[#8E8475]" 
-      : "bg-green-500/20 border-green-500/30 text-green-400"
-    }`}>
-      <ShieldCheck className="w-2.5 h-2.5" />
-      Verified Deal
-    </div>
-    
-    {/* Mirror/Reflection Effect */}
-    <div className={`absolute top-full mt-0.5 flex items-center gap-1 px-3 py-1 opacity-20 blur-[1px] scale-y-[-1] select-none ${
-      isAestheticMode ? "text-[#8E8475]" : "text-green-400"
-    }`}>
-      <ShieldCheck className="w-2.5 h-2.5" />
-      Verified Deal
-    </div>
-  </div>
-</div>
                     </div>
                   </motion.div>
                 );
