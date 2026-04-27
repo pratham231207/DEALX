@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
+// --- SUPABASE IMPORT ---
+import { createClient } from '@supabase/supabase-js';
 import { 
   ShoppingCart as CartIcon, 
   Search as SearchIcon, 
@@ -24,9 +26,23 @@ import {
   Watch,
   Camera,
   Gamepad2,
-  Home as HomeIcon
+  Home as HomeIcon,
+  Bell,
+  TrendingUp,
+  ArrowUpDown,
+  Filter,
+  Layers,
+  Zap,
+  Clock,
+  CheckCircle2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+// --- SUPABASE INITIALIZATION ---
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://weymsprdagvwqrpdyveb.supabase.co', 
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_P-Rk9MDlgQHJNHEW_UD2Cw_ZRLZN8LS'
+);
 
 export default function Home() {
   const [products, setProducts] = useState([]);
@@ -52,9 +68,156 @@ export default function Home() {
   const [isMobile, setIsMobile] = useState(false);
   
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [watchedDeals, setWatchedDeals] = useState([]);
 
   const inputRef = useRef(null);
   const searchContainerRef = useRef(null);
+
+  const [liveNotification, setLiveNotification] = useState(null);
+  const [compareList, setCompareList] = useState([]);
+  const [isCompareOpen, setIsCompareOpen] = useState(false);
+  const [maxPrice, setMaxPrice] = useState(200000);
+  const [sortOrder, setSortOrder] = useState("relevance");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [hourTimer, setHourTimer] = useState("");
+
+  // --- LOGIC (1): AUTH STATE ---
+  const [user, setUser] = useState(null);
+
+  // --- LOGIC (1): AUTH LISTENER ---
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // --- LOGIC (1): AUTH HANDLER ---
+  const handleAuth = async () => {
+    if (user) {
+      await supabase.auth.signOut();
+    } else {
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin }
+      });
+    }
+  };
+
+  useEffect(() => {
+    const fetchSupabaseWatchlist = async () => {
+      const saved = localStorage.getItem("dealx_watchlist");
+      if (saved) setWatchedDeals(JSON.parse(saved));
+
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        const { data, error } = await supabase
+          .from('user_watchlists')
+          .select('product_name')
+          .eq('user_id', currentUser.id);
+        
+        if (data && !error) {
+          const cloudNames = data.map(item => item.product_name);
+          setWatchedDeals(cloudNames);
+          localStorage.setItem("dealx_watchlist", JSON.stringify(cloudNames));
+        }
+      }
+    };
+    fetchSupabaseWatchlist();
+  }, [user]); // Re-fetch when user logs in/out
+
+  const toggleWatch = async (e, product) => {
+    e.stopPropagation();
+    
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    
+    let updated;
+    const isCurrentlyWatched = watchedDeals.includes(product.name);
+
+    if (isCurrentlyWatched) {
+      updated = watchedDeals.filter(id => id !== product.name);
+      if (currentUser) {
+        await supabase
+          .from('user_watchlists')
+          .delete()
+          .match({ user_id: currentUser.id, product_name: product.name });
+      }
+    } else {
+      updated = [...watchedDeals, product.name];
+      if (currentUser) {
+        await supabase
+          .from('user_watchlists')
+          .insert({ user_id: currentUser.id, product_name: product.name });
+      }
+    }
+
+    setWatchedDeals(updated);
+    localStorage.setItem("dealx_watchlist", JSON.stringify(updated));
+  };
+
+  useEffect(() => {
+    const events = [
+      "just grabbed an iPhone deal!",
+      "found a 40% price drop on Headphones.",
+      "is comparing MacBook prices.",
+      "added a 4K TV to their watchlist.",
+      "saved ₹4,500 on a Gaming Monitor."
+    ];
+    const names = ["Arav", "Sanya", "Rahul", "Priya", "Vikram", "Anjali"];
+    
+    const interval = setInterval(() => {
+      const randomName = names[Math.floor(Math.random() * names.length)];
+      const randomEvent = events[Math.floor(Math.random() * events.length)];
+      setLiveNotification(`${randomName} ${randomEvent}`);
+      setTimeout(() => setLiveNotification(null), 4000);
+    }, 12000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const toggleCompare = (e, product) => {
+    e.stopPropagation();
+    if (compareList.find(p => p.name === product.name)) {
+      setCompareList(compareList.filter(p => p.name !== product.name));
+    } else if (compareList.length < 3) {
+      setCompareList([...compareList, product]);
+      setIsCompareOpen(true);
+    }
+  };
+
+  const finalResults = useMemo(() => {
+    let list = [...results].filter(p => {
+      const best = [p.amazonPrice, p.flipkartPrice, p.myntraPrice, p.nykaaPrice]
+        .filter(price => price > 0)
+        .sort((a, b) => a - b)[0];
+      return best <= maxPrice;
+    });
+
+    if (sortOrder === "priceLow") {
+      list.sort((a, b) => {
+        const p1 = Math.min(...[a.amazonPrice, a.flipkartPrice].filter(x => x > 0));
+        const p2 = Math.min(...[b.amazonPrice, b.flipkartPrice].filter(x => x > 0));
+        return p1 - p2;
+      });
+    } else if (sortOrder === "savings") {
+      list.sort((a, b) => {
+        const s1 = parseFloat(getDealScore(a).percent);
+        const s2 = parseFloat(getDealScore(b).percent);
+        return s2 - s1;
+      });
+    }
+    return list;
+  }, [results, maxPrice, sortOrder]);
+
+  useEffect(() => {
+    const updateTimer = () => {
+      const now = new Date();
+      const mins = 59 - now.getMinutes();
+      const secs = 59 - now.getSeconds();
+      setHourTimer(`${mins}:${secs < 10 ? '0' : ''}${secs}`);
+    };
+    const timerId = setInterval(updateTimer, 1000);
+    return () => clearInterval(timerId);
+  }, []);
 
   const getBestDeal = (product) => {
     if (!product) return { platform: "None", price: 0, link: "#", savings: 0 };
@@ -72,6 +235,14 @@ export default function Home() {
     const worst = sorted[sorted.length - 1];
     
     return { ...best, savings: worst.price - best.price };
+  };
+
+  const getDealScore = (product) => {
+    const { price, savings } = getBestDeal(product);
+    if (price === 0) return { score: 0, label: "N/A" };
+    const savingsPercent = (savings / (price + savings)) * 100;
+    const score = Math.min(Math.max((savingsPercent / 5) + 5, 4.2), 9.9).toFixed(1);
+    return { score, percent: savingsPercent.toFixed(0) };
   };
 
   const CustomSpinner = () => (
@@ -235,8 +406,8 @@ export default function Home() {
   
   const paginatedResults = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
-    return results.slice(start, start + itemsPerPage);
-  }, [results, currentPage, itemsPerPage]);
+    return finalResults.slice(start, start + itemsPerPage);
+  }, [finalResults, currentPage, itemsPerPage]);
 
   const getPageNumbers = () => {
     const half = Math.floor(pageLimit / 2);
@@ -260,7 +431,55 @@ export default function Home() {
       isAestheticMode ? "bg-[#F5F5F0]" : (dark ? "bg-[#0a0a0a]" : "bg-[#f8fafc]")
     } ${isAestheticMode ? "text-[#4A4238]" : (dark ? "text-white" : "text-black")}`}>
       
-      {/* MAXIMIZED PRODUCT OVERLAY */}
+      <AnimatePresence>
+        {liveNotification && (
+          <motion.div 
+            initial={{ x: -100, opacity: 0 }} 
+            animate={{ x: 0, opacity: 1 }} 
+            exit={{ x: -100, opacity: 0 }}
+            className={`fixed bottom-24 left-6 z-[100] px-4 py-3 rounded-2xl shadow-2xl border backdrop-blur-xl flex items-center gap-3 ${
+              isAestheticMode ? "bg-white/90 border-[#D6D2C4]" : "bg-black/80 border-white/10"
+            }`}
+          >
+            <div className={`w-2 h-2 rounded-full animate-pulse ${isAestheticMode ? "bg-[#8E8475]" : "bg-green-500"}`} />
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-80">{liveNotification}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isCompareOpen && compareList.length > 0 && (
+          <motion.div 
+            initial={{ y: 300 }} 
+            animate={{ y: 0 }} 
+            exit={{ y: 300 }}
+            className={`fixed bottom-0 left-0 right-0 z-[200] border-t backdrop-blur-3xl shadow-[0_-20px_50px_rgba(0,0,0,0.3)] p-6 rounded-t-[3rem] ${
+              isAestheticMode ? "bg-white/95 border-[#D6D2C4]" : "bg-[#0a0a0a]/95 border-white/10"
+            }`}
+          >
+            <div className="max-w-5xl mx-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xs font-black uppercase tracking-[0.3em]">Compare Engine ({compareList.length}/3)</h3>
+                <button onClick={() => setIsCompareOpen(false)} className="p-2 opacity-40 hover:opacity-100 transition-opacity"><CloseIcon className="w-5 h-5" /></button>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                {compareList.map(p => (
+                  <div key={p.name} className="flex flex-col gap-2 relative group">
+                    <button onClick={() => setCompareList(compareList.filter(x => x.name !== p.name))} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity"><CloseIcon className="w-3 h-3" /></button>
+                    <div className="h-20 bg-white rounded-xl p-2 flex items-center justify-center">
+                      <img src={p.image} className="h-full object-contain" />
+                    </div>
+                    <span className="text-[9px] font-bold line-clamp-1 opacity-60 uppercase">{p.name}</span>
+                    <span className="text-sm font-black text-blue-500">₹{getBestDeal(p).price.toLocaleString()}</span>
+                  </div>
+                ))}
+                {compareList.length < 3 && <div className="border-2 border-dashed border-white/10 rounded-xl flex items-center justify-center text-[10px] font-black opacity-20 uppercase">Add more</div>}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {selectedProduct && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-8">
@@ -308,21 +527,7 @@ export default function Home() {
                       <CartIcon className="w-4 h-4" />
                       Grab Deal @ ₹{getBestDeal(selectedProduct).price.toLocaleString('en-IN')}
                     </motion.button>
-                    {/* VERIFIED BADGE */}
-                      <div className="absolute bottom-2 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-2 group-hover:translate-y-0 pointer-events-none">
-                        <div className="relative flex flex-col items-center">
-                          <div className={`flex items-center gap-1 px-3 py-1 rounded-full backdrop-blur-md border text-[8px] font-black uppercase tracking-[0.2em] shadow-lg ${
-                            isAestheticMode 
-                            ? "bg-white/80 border-[#8E8475]/20 text-[#8E8475]" 
-                            : "bg-green-500/20 border-green-500/30 text-green-400"
-                          }`}>
-                            <ShieldCheck className="w-2.5 h-2.5" />
-                            Verified Deal
-                          </div>
-                        </div>
-                      </div>
                 </div>
-                
                 
                 <button 
                   onClick={() => setSelectedProduct(null)}
@@ -336,16 +541,56 @@ export default function Home() {
         )}
       </AnimatePresence>
 
+      {/* --- LOGIC (2): UPDATED HEADER JSX --- */}
       <header className={`sticky top-0 z-[60] backdrop-blur-xl border-b -mx-3 mb-6 transition-colors duration-500 ${
         isAestheticMode ? "bg-white/40 border-[#D6D2C4]" : (dark ? "bg-black/40 border-white/5" : "bg-white/60 border-gray-200")
       }`}>
-        <div className="max-w-7xl mx-auto flex items-center justify-between sm:justify-center px-5 py-3 sm:py-5 relative">
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} transition={softAppleSpring} className="flex items-center gap-2 cursor-pointer">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-5 py-3 sm:py-5 relative">
+          <motion.div 
+            whileHover={{ scale: 1.05 }} 
+            whileTap={{ scale: 0.95 }} 
+            transition={softAppleSpring} 
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          >
             <CartIcon className={`w-6 h-6 sm:w-8 sm:h-8 ${isAestheticMode ? "text-[#A89F91]" : "text-blue-500"}`} />
-            <h1 className="text-lg sm:text-3xl font-bold tracking-tighter uppercase">DEAL<span className={isAestheticMode ? "text-[#A89F91]" : "text-blue-500"}>X</span></h1>
+            <h1 className="text-lg sm:text-3xl font-bold tracking-tighter uppercase">
+              DEAL<span className={isAestheticMode ? "text-[#A89F91]" : "text-blue-500"}>X</span>
+            </h1>
           </motion.div>
-          <div className="sm:absolute sm:right-8 top-1/2 sm:-translate-y-1/2">
-            <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} transition={softAppleSpring} onClick={() => setDark(!dark)} className={`text-[10px] sm:text-[9px] font-bold border-2 px-3 py-1 rounded-full uppercase transition-colors duration-300 ${isAestheticMode ? "border-[#A89F91]/40 text-[#A89F91]" : (dark ? "border-white/20 text-white" : "border-black/10 text-black")}`}>
+
+          <div className="flex items-center gap-3">
+            <motion.button 
+              whileHover={{ scale: 1.05 }} 
+              whileTap={{ scale: 0.95 }} 
+              onClick={handleAuth}
+              className={`flex items-center gap-2 text-[10px] sm:text-[9px] font-black px-4 py-1.5 rounded-full border-2 uppercase transition-all ${
+                user 
+                  ? (isAestheticMode ? "border-[#4A4238] bg-[#4A4238] text-white" : "border-blue-600 bg-blue-600 text-white")
+                  : (isAestheticMode ? "border-[#A89F91]/40 text-[#A89F91]" : (dark ? "border-white/20 text-white" : "border-black/10 text-black"))
+              }`}
+            >
+              {user ? (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                  Sign Out
+                </>
+              ) : (
+                "Sign In"
+              )}
+            </motion.button>
+
+            <motion.button 
+              whileHover={{ scale: 1.1 }} 
+              whileTap={{ scale: 0.9 }} 
+              transition={softAppleSpring} 
+              onClick={() => setDark(!dark)} 
+              className={`text-[10px] sm:text-[9px] font-bold border-2 px-3 py-1.5 rounded-full uppercase transition-colors duration-300 ${
+                isAestheticMode 
+                  ? "border-[#A89F91]/40 text-[#A89F91]" 
+                  : (dark ? "border-white/20 text-white" : "border-black/10 text-black")
+              }`}
+            >
                 {dark ? "LIGHT" : "DARK"}
             </motion.button>
           </div>
@@ -363,25 +608,6 @@ export default function Home() {
                   <motion.h2 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="text-white text-2xl sm:text-6xl font-black uppercase tracking-tighter leading-[0.9] sm:leading-[0.85] mb-3 sm:mb-4">{heroSlides[currentHeroIndex].title}</motion.h2>
                   <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="text-white/50 text-[9px] sm:text-sm font-bold uppercase tracking-widest">{heroSlides[currentHeroIndex].sub}</motion.p>
                 </div>
-
-                <AnimatePresence>
-                  {!isScrolled && (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 z-20"
-                    >
-                      <span className="text-[7px] sm:text-[9px] font-black uppercase tracking-[0.4em] text-white/60">Scroll to Search</span>
-                      <motion.div
-                        animate={{ y: [0, 6, 0] }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                      >
-                        <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-white/60" />
-                      </motion.div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </motion.div>
             </AnimatePresence>
           </div>
@@ -423,35 +649,35 @@ export default function Home() {
                   </div>
 
                  <AnimatePresence>
-  {isMoreOpen && (
-    <motion.div
-      ref={moreMenuRef}
-      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-      /* 
-         FIX: Added 'right-4' for mobile and 'sm:right-0' for desktop.
-         This forces the menu to stick to the right edge of the padding 
-         rather than floating based on the scroll position of the tabs.
-      */
-      className={`absolute top-full right-4 sm:right-0 mt-2 z-[2500] min-w-[180px] max-h-[50vh] overflow-y-auto no-scrollbar p-2 rounded-2xl border shadow-2xl backdrop-blur-3xl ${
-        isAestheticMode ? "bg-white/95 border-[#D6D2C4]" : (dark ? "bg-black/95 border-white/10" : "bg-white/95 border-black/10")
-      }`}
-    >
-      {moreCategories.map((cat) => (
-        <button
-          key={cat.name}
-          onClick={() => { setActiveTab(cat.name); setIsMoreOpen(false); }}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${
-            activeTab === cat.name ? (isAestheticMode ? "bg-[#4A4238] text-white" : "bg-blue-600 text-white") : "hover:bg-white/10 text-gray-400"
-          }`}
-        >
-          {cat.icon} {cat.name}
-        </button>
-      ))}
-    </motion.div>
-  )}
-</AnimatePresence>
+                    {isMoreOpen && (
+                      <motion.div 
+                        ref={moreMenuRef}
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className={`absolute top-full right-0 mt-2 min-w-[180px] p-2 rounded-2xl border shadow-2xl backdrop-blur-xl z-[100] ${
+                          isAestheticMode ? "bg-white/95 border-[#D6D2C4]" : "bg-black/90 border-white/10"
+                        }`}
+                      >
+                        {moreCategories.map((cat) => (
+                          <button
+                            key={cat.name}
+                            onClick={() => {
+                              setActiveTab(cat.name);
+                              setIsMoreOpen(false);
+                            }}
+                            className={`w-full flex items-center px-4 py-3.5 rounded-xl text-[10px] font-black uppercase transition-all ${
+                              activeTab === cat.name 
+                                ? (isAestheticMode ? "bg-[#4A4238] text-white" : "bg-blue-600 text-white") 
+                                : (dark ? "text-gray-400 hover:bg-white/10" : "text-gray-600 hover:bg-black/5")
+                            }`}
+                          >
+                            {cat.icon} {cat.name}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </motion.div>
             ) : (
@@ -514,13 +740,24 @@ export default function Home() {
           </AnimatePresence>
         </div>
 
+        <AnimatePresence>
+          {showSuggestions && (
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              className="fixed inset-0 z-[190] bg-black/60 pointer-events-none" 
+            />
+          )}
+        </AnimatePresence>
+
         <motion.div 
           ref={searchContainerRef} 
           initial={{ opacity: 0, scale: 0.98, y: 30 }}
           whileInView={{ opacity: 1, scale: 1, y: 0 }}
           viewport={{ once: true }}
           transition={softAppleSpring}
-          className={`relative z-[1] w-full max-w-3xl mx-auto mb-16 px-4 transition-all duration-700 ${isScrolled ? "opacity-0 pointer-events-none -translate-y-10" : "opacity-100"}`}
+          className={`relative ${showSuggestions ? "z-[200]" : "z-[1]"} w-full max-w-3xl mx-auto mb-16 px-4 transition-all duration-700 ${isScrolled ? "opacity-0 pointer-events-none -translate-y-10" : "opacity-100"}`}
         >
             <motion.div whileFocusWithin={{ scale: 1.01 }} transition={softAppleSpring} className={`flex items-center rounded-[2rem] border-2 p-1.5 transition-colors duration-300 focus-within:border-blue-500 ${isAestheticMode ? "bg-[#EAE7DD] border-[#D6D2C4]" : (dark ? "bg-white/5 border-white/10" : "bg-white border-black/10 shadow-sm")}`}>
               <SearchIcon className="ml-5 w-4 h-4 text-gray-400" />
@@ -531,8 +768,51 @@ export default function Home() {
                 onChange={(e) => setQuery(e.target.value)} 
                 className="w-full bg-transparent px-4 py-3 text-sm sm:text-base font-bold outline-none placeholder:text-gray-500" 
               />
+              <button 
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className={`p-3 mr-2 rounded-xl transition-colors ${isFilterOpen ? "bg-blue-500 text-white" : "hover:bg-black/5 text-gray-500"}`}
+              >
+                <Filter className="w-4 h-4" />
+              </button>
               <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.96 }} transition={softAppleSpring} className={`hidden sm:flex items-center gap-2 px-10 py-3 rounded-[1.2rem] font-bold transition-colors duration-300 mr-1 ${isAestheticMode ? "bg-[#8E8475] text-white" : "bg-red-600 text-white"}`}>SEARCH</motion.button>
             </motion.div>
+
+            <AnimatePresence>
+              {isFilterOpen && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }} 
+                  animate={{ height: "auto", opacity: 1 }} 
+                  exit={{ height: 0, opacity: 0 }}
+                  className={`mt-4 rounded-[2rem] border overflow-hidden p-6 ${isAestheticMode ? "bg-white/80 border-[#D6D2C4]" : "bg-black/40 border-white/10"}`}
+                >
+                  <div className="flex flex-col sm:flex-row gap-8 justify-between">
+                    <div className="flex-1">
+                      <div className="flex justify-between mb-3">
+                        <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Price Range</span>
+                        <span className="text-[10px] font-black text-blue-500">Under ₹{maxPrice.toLocaleString()}</span>
+                      </div>
+                      <input type="range" min="500" max="200000" step="500" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full accent-blue-500 cursor-pointer" />
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Sort By</span>
+                        <div className="flex gap-2">
+                          {[
+                            { id: 'relevance', label: 'Default', icon: <SparkleIcon className="w-3 h-3" /> },
+                            { id: 'priceLow', label: 'Price', icon: <ArrowUpDown className="w-3 h-3" /> },
+                            { id: 'savings', label: 'Savings', icon: <TrendingUp className="w-3 h-3" /> }
+                          ].map(s => (
+                            <button key={s.id} onClick={() => setSortOrder(s.id)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-bold uppercase transition-all ${sortOrder === s.id ? "bg-blue-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"}`}>
+                              {s.icon} {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <AnimatePresence>
               {showSuggestions && suggestions.length > 0 && (
@@ -561,6 +841,51 @@ export default function Home() {
             </AnimatePresence>
         </motion.div>
 
+        {!isLoading && finalResults.length > 0 && currentPage === 1 && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`mx-4 mb-10 p-1 rounded-[2.5rem] bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 animate-gradient-x shadow-2xl`}
+          >
+            <div className={`rounded-[2.4rem] p-6 sm:p-10 flex flex-col sm:flex-row items-center gap-8 ${isAestheticMode ? "bg-[#F5F5F0]" : (dark ? "bg-black" : "bg-white")}`}>
+              <div className="relative group cursor-zoom-in" onClick={() => setSelectedProduct(finalResults[0])}>
+                <div className="absolute -inset-4 bg-blue-500/20 blur-3xl rounded-full opacity-50 group-hover:opacity-100 transition-opacity" />
+                <img src={finalResults[0].image} className="w-32 sm:w-48 h-32 sm:h-48 object-contain relative z-10" />
+              </div>
+              <div className="flex-1 text-center sm:text-left">
+                <div className="flex wrap items-center justify-center sm:justify-start gap-4 mb-4">
+                  <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 text-blue-500 text-[9px] font-black uppercase tracking-widest">
+                    <Zap className="w-3 h-3" /> Deal of the Hour
+                  </div>
+                  <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest opacity-40">
+                    <Clock className="w-3 h-3" /> Expires in {hourTimer}
+                  </div>
+                </div>
+                <h2 className="text-xl sm:text-4xl font-black uppercase tracking-tighter leading-none mb-4">{finalResults[0].name}</h2>
+                <div className="flex items-center justify-center sm:justify-start gap-6">
+                  <div>
+                    <p className="text-[8px] font-black opacity-30 uppercase tracking-[0.2em] mb-1">Lowest Found</p>
+                    <p className="text-2xl sm:text-4xl font-black text-green-500">₹{getBestDeal(finalResults[0]).price.toLocaleString()}</p>
+                  </div>
+                  <div className="h-10 w-[1px] bg-white/10" />
+                  <div>
+                    <p className="text-[8px] font-black opacity-30 uppercase tracking-[0.2em] mb-1">Reliability Score</p>
+                    <p className="text-2xl sm:text-4xl font-black text-blue-500">{getDealScore(finalResults[0]).score}</p>
+                  </div>
+                </div>
+              </div>
+              <motion.button 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => window.open(getBestDeal(finalResults[0]).link, "_blank")}
+                className={`px-10 py-5 rounded-2xl text-xs font-black uppercase tracking-widest text-white shadow-xl ${isAestheticMode ? "bg-[#8E8475]" : "bg-blue-600"}`}
+              >
+                GRAB EXCLUSIVE DEAL
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-8 px-2 sm:px-4 pb-10">
           <AnimatePresence mode="wait">
             {isLoading || isSearching ? (
@@ -568,6 +893,10 @@ export default function Home() {
             ) : paginatedResults.length > 0 ? (
               paginatedResults.map((product, index) => {
                 const best = getBestDeal(product);
+                const deal = getDealScore(product);
+                const isWatched = watchedDeals.includes(product.name);
+                const isComparing = compareList.some(p => p.name === product.name);
+
                 return (
                   <motion.div 
                     layoutId={`card-${product.id || product.name}`}
@@ -589,15 +918,30 @@ export default function Home() {
                         : (dark ? "bg-[#111] border-white/5 hover:border-blue-500/30" : "bg-white border-black/5 hover:border-blue-500/10 shadow-sm")
                     }`}
                   >
+                    <div className="absolute -top-2 -right-1 z-30 flex flex-col items-end gap-1 pointer-events-none">
+                      <div className={`px-2 py-1 rounded-lg text-[9px] font-black shadow-xl flex items-center gap-1 ${isAestheticMode ? "bg-[#4A4238] text-white" : "bg-blue-600 text-white"}`}>
+                        <TrendingUp className="w-3 h-3" />
+                        {deal.score}
+                      </div>
+                    </div>
+
                     {best.savings > 0 && (
                       <div className={`absolute top-3 left-3 sm:top-5 sm:left-5 z-20 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[7px] sm:text-[8px] font-black uppercase tracking-tighter shadow-xl ${isAestheticMode ? "bg-white text-[#8E8475]" : "bg-green-500 text-white"}`}>
-                        -₹{best.savings.toLocaleString('en-IN')}
+                        -{deal.percent}% OFF
                       </div>
                     )}
                     
-                    <motion.button whileHover={{ scale: 1.1, rotate: 5 }} whileTap={{ scale: 0.8 }} transition={softAppleSpring} onClick={(e) => { e.stopPropagation(); handleShare(product.name, best.link); }} className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 p-2 rounded-full bg-white/5 text-gray-500 hover:text-white transition-colors">
-                      <ShareIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    </motion.button>
+                    <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 flex gap-1">
+                      <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.8 }} onClick={(e) => toggleCompare(e, product)} className={`p-2 rounded-full transition-colors ${isComparing ? "bg-blue-600 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>
+                        <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      </motion.button>
+                      <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.8 }} onClick={(e) => toggleWatch(e, product)} className={`p-2 rounded-full transition-colors ${isWatched ? "bg-blue-500 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>
+                        <Bell className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isWatched ? "fill-current" : ""}`} />
+                      </motion.button>
+                      <motion.button whileHover={{ scale: 1.1, rotate: 5 }} whileTap={{ scale: 0.8 }} transition={softAppleSpring} onClick={(e) => { e.stopPropagation(); handleShare(product.name, best.link); }} className="p-2 rounded-full bg-white/5 text-gray-500 hover:text-white transition-colors">
+                        <ShareIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      </motion.button>
+                    </div>
 
                     <div className="flex flex-col gap-2 items-center text-center">
                       <div className="relative overflow-hidden rounded-[1.2rem] sm:rounded-[1.5rem] bg-white p-2 w-full aspect-square flex items-center justify-center">
@@ -679,7 +1023,6 @@ export default function Home() {
             </p>
         </footer>
 
-        {/* FLOATING ACTION SEARCH */}
         <div className={`fixed bottom-6 left-0 right-0 z-[140] px-4 flex justify-center transition-all duration-1000 ${isScrolled ? "translate-y-0 opacity-100 scale-100" : "translate-y-24 opacity-0 scale-50"}`}>
           <motion.div layout transition={softAppleSpring} className={`flex items-center shadow-2xl border border-white/20 backdrop-blur-xl rounded-[2rem] overflow-hidden 
             ${isFabOpen ? "w-full max-w-md h-16" : "w-14 h-14 animate-pulse-slow"} 
@@ -695,8 +1038,10 @@ export default function Home() {
         <style jsx global>{`
           @keyframes pulse-slow { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.03); opacity: 0.97; } }
           @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+          @keyframes gradient-x { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
           .animate-pulse-slow { animation: pulse-slow 4s infinite ease-in-out; }
           .animate-spin-slow { animation: spin-slow 10s linear infinite; }
+          .animate-gradient-x { background-size: 200% 200%; animation: gradient-x 15s ease infinite; }
           .no-scrollbar::-webkit-scrollbar { display: none; }
           body { -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
         `}</style>
