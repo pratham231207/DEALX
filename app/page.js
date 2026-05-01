@@ -161,6 +161,7 @@ export default function Home() {
   const [isScrolled,     setIsScrolled]    = useState(false);
   const [isFabOpen,      setIsFabOpen]     = useState(false);
   const [isMenuOpen,     setIsMenuOpen]    = useState(false);
+  const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
   const [isMoreOpen,     setIsMoreOpen]    = useState(false);
   const [suggestions,    setSuggestions]   = useState([]);
   const [showSuggestions,setShowSuggestions] = useState(false);
@@ -183,6 +184,7 @@ export default function Home() {
   // ─── REFS ───────────────────────────────────────────────────────────────────
   const suggestionContainerRef = useRef(null);
   const moreMenuRef            = useRef(null);
+  const categoryMenuRef        = useRef(null);
   const inputRef               = useRef(null);
   const searchContainerRef     = useRef(null);
   const heroIntervalRef        = useRef(null);
@@ -381,6 +383,7 @@ export default function Home() {
           setIsScrolled(false);
           setIsFabOpen(false);
           setIsMenuOpen(false);
+          setIsCategoryMenuOpen(false);
           setHeroVisible(true);
         }
       }
@@ -396,6 +399,8 @@ export default function Home() {
         setShowSuggestions(false);
       if (moreMenuRef.current && !moreMenuRef.current.contains(e.target))
         setIsMoreOpen(false);
+      if (categoryMenuRef.current && !categoryMenuRef.current.contains(e.target))
+        setIsCategoryMenuOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -797,29 +802,152 @@ export default function Home() {
                     transition={{ ...appleSpring, delay: 0.1 }}
                     className="text-center"
                   >
-                    <p className={`text-[11px] font-semibold uppercase tracking-widest mb-1.5 ${T.accentTextCls}`}>
-                      Best on {getBestDeal(selectedProduct).platform}
-                    </p>
                     <h2 className={`text-lg sm:text-xl font-bold leading-snug ${T.text}`}>{selectedProduct.name}</h2>
+                    <p className={`text-[11px] font-semibold uppercase tracking-widest mt-1.5 ${T.subtext}`}>
+                      {selectedProduct.category}
+                    </p>
                   </motion.div>
                   <motion.div
                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ ...appleSpring, delay: 0.14 }}
                     className="w-full space-y-2.5"
                   >
-                    <motion.button
-                      whileHover={{ scale: 1.015, filter: "brightness(1.06)" }}
-                      whileTap={{ scale: 0.985 }}
-                      transition={snappySpring}
-                      onPointerDown={() => triggerHaptic("purchase")}
-                      onClick={() => window.open(getBestDeal(selectedProduct).link, "_blank")}
-                      className={`w-full py-4 rounded-2xl flex items-center justify-center gap-2.5 text-sm font-semibold text-white ${T.accentCls}`}
-                      style={{ boxShadow: `0 4px 20px ${T.accent}40` }}
-                    >
-                      <CartIcon className="w-[18px] h-[18px]" />
-                      Buy for ₹{getBestDeal(selectedProduct).price.toLocaleString("en-IN")}
-                      <ExternalLink className="w-3.5 h-3.5 opacity-70" />
-                    </motion.button>
+                    {/* ── SMART DEAL BUTTONS (modal) ──────────────────── */}
+                    {(() => {
+                      const p        = selectedProduct;
+                      const amzPrice = p.amazonPrice   || 0;
+                      const fkPrice  = p.flipkartPrice  || 0;
+                      const amzRating= p.trustScore          || 0;
+                      const fkRating = p.flipkartTrustScore  || 0;
+                      const amzReviews = p.reviewCount        || 0;
+                      const fkReviews  = p.flipkartReviewCount || 0;
+                      const amzLink  = p.amazonLink;
+                      const fkLink   = p.flipkartLink;
+                      const best     = getBestDeal(p);
+
+                      const bothAvailable = amzPrice > 0 && fkPrice > 0 && amzLink && fkLink;
+
+                      if (bothAvailable) {
+                        const cheaperIs     = amzPrice <= fkPrice ? "Amazon"   : "Flipkart";
+                        const expensiveIs   = amzPrice <= fkPrice ? "Flipkart" : "Amazon";
+                        const cheaperPrice  = Math.min(amzPrice, fkPrice);
+                        const expPrice      = Math.max(amzPrice, fkPrice);
+                        const cheaperRating = cheaperIs === "Amazon" ? amzRating : fkRating;
+                        const expRating     = cheaperIs === "Amazon" ? fkRating  : amzRating;
+                        const cheaperReviews= cheaperIs === "Amazon" ? amzReviews : fkReviews;
+                        const expReviews    = cheaperIs === "Amazon" ? fkReviews  : amzReviews;
+                        const cheaperLink   = cheaperIs === "Amazon" ? amzLink   : fkLink;
+                        const expLink       = cheaperIs === "Amazon" ? fkLink    : amzLink;
+                        const savings       = expPrice - cheaperPrice;
+
+                        // Cheaper is also equal/better rated → single best deal button
+                        if (cheaperRating >= expRating) {
+                          return (
+                            <motion.button
+                              whileHover={{ scale: 1.015, filter: "brightness(1.06)" }}
+                              whileTap={{ scale: 0.985 }}
+                              transition={snappySpring}
+                              onPointerDown={() => triggerHaptic("purchase")}
+                              onClick={() => window.open(cheaperLink, "_blank")}
+                              className={`w-full py-4 rounded-2xl flex items-center justify-center gap-2.5 text-sm font-semibold text-white ${T.accentCls}`}
+                              style={{ boxShadow: `0 4px 20px ${T.accent}40` }}
+                            >
+                              <CartIcon className="w-[18px] h-[18px]" />
+                              Best Deal · {cheaperIs} · ₹{cheaperPrice.toLocaleString("en-IN")}
+                              <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                            </motion.button>
+                          );
+                        }
+
+                        // Two different outcomes → rich dual cards
+                        return (
+                          <div className="flex flex-col gap-2.5">
+                            {/* Cheaper option */}
+                            <motion.button
+                              whileHover={{ scale: 1.015, filter: "brightness(1.05)" }}
+                              whileTap={{ scale: 0.985 }}
+                              transition={snappySpring}
+                              onPointerDown={() => triggerHaptic("purchase")}
+                              onClick={() => window.open(cheaperLink, "_blank")}
+                              className="w-full rounded-2xl overflow-hidden text-left"
+                              style={{ boxShadow: "0 4px 20px rgba(5,150,105,0.22)" }}
+                            >
+                              <div className="bg-emerald-600 px-4 py-2 flex items-center gap-2">
+                                <span className="text-[11px] font-black text-white uppercase tracking-wider">💸 Cheaper Pick</span>
+                                {savings > 0 && (
+                                  <span className="ml-auto text-[10px] font-bold text-emerald-100 bg-emerald-700/60 px-2 py-0.5 rounded-full">
+                                    Save ₹{savings.toLocaleString("en-IN")}
+                                  </span>
+                                )}
+                              </div>
+                              <div className={`px-4 py-3 flex items-center justify-between ${dark ? "bg-emerald-950/40 border border-emerald-900/40" : "bg-emerald-50 border border-emerald-100"}`}>
+                                <div>
+                                  <p className={`text-xs font-semibold ${dark ? "text-white/50" : "text-emerald-800/60"} mb-0.5`}>{cheaperIs}</p>
+                                  <p className={`text-xl font-black ${dark ? "text-white" : "text-gray-900"}`}>₹{cheaperPrice.toLocaleString("en-IN")}</p>
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                    <span className={`text-[11px] font-semibold ${dark ? "text-white/60" : "text-gray-600"}`}>{cheaperRating.toFixed(1)}</span>
+                                    {cheaperReviews > 0 && <span className={`text-[10px] ${dark ? "text-white/30" : "text-gray-400"}`}>({cheaperReviews.toLocaleString()} reviews)</span>}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-emerald-600 font-semibold text-xs">
+                                  Buy Now <ExternalLink className="w-3.5 h-3.5" />
+                                </div>
+                              </div>
+                            </motion.button>
+
+                            {/* Higher-rated option */}
+                            <motion.button
+                              whileHover={{ scale: 1.015, filter: "brightness(1.05)" }}
+                              whileTap={{ scale: 0.985 }}
+                              transition={snappySpring}
+                              onPointerDown={() => triggerHaptic("purchase")}
+                              onClick={() => window.open(expLink, "_blank")}
+                              className="w-full rounded-2xl overflow-hidden text-left"
+                              style={{ boxShadow: "0 4px 20px rgba(124,58,237,0.22)" }}
+                            >
+                              <div className="bg-violet-600 px-4 py-2 flex items-center gap-2">
+                                <span className="text-[11px] font-black text-white uppercase tracking-wider">⭐ Top Rated</span>
+                                <span className="ml-auto text-[10px] font-bold text-violet-100 bg-violet-700/60 px-2 py-0.5 rounded-full">
+                                  Higher Trust Score
+                                </span>
+                              </div>
+                              <div className={`px-4 py-3 flex items-center justify-between ${dark ? "bg-violet-950/40 border border-violet-900/40" : "bg-violet-50 border border-violet-100"}`}>
+                                <div>
+                                  <p className={`text-xs font-semibold ${dark ? "text-white/50" : "text-violet-800/60"} mb-0.5`}>{expensiveIs}</p>
+                                  <p className={`text-xl font-black ${dark ? "text-white" : "text-gray-900"}`}>₹{expPrice.toLocaleString("en-IN")}</p>
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                    <span className={`text-[11px] font-semibold ${dark ? "text-white/60" : "text-gray-600"}`}>{expRating.toFixed(1)}</span>
+                                    {expReviews > 0 && <span className={`text-[10px] ${dark ? "text-white/30" : "text-gray-400"}`}>({expReviews.toLocaleString()} reviews)</span>}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-violet-600 font-semibold text-xs">
+                                  Buy Now <ExternalLink className="w-3.5 h-3.5" />
+                                </div>
+                              </div>
+                            </motion.button>
+                          </div>
+                        );
+                      }
+
+                      // Only one platform available
+                      return (
+                        <motion.button
+                          whileHover={{ scale: 1.015, filter: "brightness(1.06)" }}
+                          whileTap={{ scale: 0.985 }}
+                          transition={snappySpring}
+                          onPointerDown={() => triggerHaptic("purchase")}
+                          onClick={() => window.open(best.link, "_blank")}
+                          className={`w-full py-4 rounded-2xl flex items-center justify-center gap-2.5 text-sm font-semibold text-white ${T.accentCls}`}
+                          style={{ boxShadow: `0 4px 20px ${T.accent}40` }}
+                        >
+                          <CartIcon className="w-[18px] h-[18px]" />
+                          Buy for ₹{best.price.toLocaleString("en-IN")}
+                          <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                        </motion.button>
+                      );
+                    })()}
                     <div className="grid grid-cols-2 gap-2.5">
                       {[
                         {
@@ -1480,17 +1608,94 @@ export default function Home() {
                           </span>
                         )}
                       </div>
-                      <motion.button
-                        whileHover={{ scale: 1.02, filter: "brightness(1.06)" }}
-                        whileTap={{ scale: 0.97 }}
-                        transition={snappySpring}
-                        onPointerDown={() => triggerHaptic("purchase")}
-                        onClick={(e) => { e.stopPropagation(); window.open(best.link, "_blank"); }}
-                        className={`w-full py-2.5 rounded-xl text-[11px] sm:text-xs font-semibold text-white ${T.accentCls}`}
-                        style={{ boxShadow: `0 2px 10px ${T.accent}30` }}
-                      >
-                        View Deal
-                      </motion.button>
+                      {/* ── SMART DEAL BUTTONS ──────────────────────────── */}
+                      {(() => {
+                        const amzPrice  = product.amazonPrice   || 0;
+                        const fkPrice   = product.flipkartPrice  || 0;
+                        const amzRating = product.trustScore         || 0;
+                        const fkRating  = product.flipkartTrustScore || 0;
+                        const amzLink   = product.amazonLink;
+                        const fkLink    = product.flipkartLink;
+
+                        // Both platforms available
+                        if (amzPrice > 0 && fkPrice > 0 && amzLink && fkLink) {
+                          const cheaperPlatform  = amzPrice <= fkPrice ? "Amazon"   : "Flipkart";
+                          const expensivePlatform = amzPrice <= fkPrice ? "Flipkart" : "Amazon";
+                          const cheaperPrice     = Math.min(amzPrice, fkPrice);
+                          const expensivePrice   = Math.max(amzPrice, fkPrice);
+                          const cheaperRating    = cheaperPlatform === "Amazon" ? amzRating : fkRating;
+                          const expensiveRating  = cheaperPlatform === "Amazon" ? fkRating  : amzRating;
+                          const cheaperLink      = cheaperPlatform === "Amazon" ? amzLink   : fkLink;
+                          const expensiveLink    = cheaperPlatform === "Amazon" ? fkLink    : amzLink;
+
+                          // Cheaper platform also has equal or higher rating → single "View Deal"
+                          if (cheaperRating >= expensiveRating) {
+                            return (
+                              <motion.button
+                                whileHover={{ scale: 1.02, filter: "brightness(1.06)" }}
+                                whileTap={{ scale: 0.97 }}
+                                transition={snappySpring}
+                                onPointerDown={() => triggerHaptic("purchase")}
+                                onClick={(e) => { e.stopPropagation(); window.open(cheaperLink, "_blank"); }}
+                                className={`w-full py-2.5 rounded-xl text-[11px] sm:text-xs font-semibold text-white ${T.accentCls}`}
+                                style={{ boxShadow: `0 2px 10px ${T.accent}30` }}
+                              >
+                                View Deal · {cheaperPlatform}
+                              </motion.button>
+                            );
+                          }
+
+                          // Two different outcomes → dual buttons
+                          return (
+                            <div className="flex gap-1.5">
+                              {/* Cheaper but lower-rated */}
+                              <motion.button
+                                whileHover={{ scale: 1.02, filter: "brightness(1.1)" }}
+                                whileTap={{ scale: 0.96 }}
+                                transition={snappySpring}
+                                onPointerDown={() => triggerHaptic("light")}
+                                onClick={(e) => { e.stopPropagation(); window.open(cheaperLink, "_blank"); }}
+                                title={`${cheaperPlatform}: ₹${cheaperPrice.toLocaleString("en-IN")} · ★${cheaperRating} (cheaper)`}
+                                className="flex-1 py-2 rounded-xl text-[10px] font-bold text-white bg-emerald-600 flex flex-col items-center gap-0.5 leading-tight"
+                                style={{ boxShadow: "0 2px 8px rgba(5,150,105,0.30)" }}
+                              >
+                                <span className="text-[9px] opacity-80 font-semibold">💸 Cheaper</span>
+                                <span>{cheaperPlatform}</span>
+                              </motion.button>
+
+                              {/* Expensive but higher-rated */}
+                              <motion.button
+                                whileHover={{ scale: 1.02, filter: "brightness(1.1)" }}
+                                whileTap={{ scale: 0.96 }}
+                                transition={snappySpring}
+                                onPointerDown={() => triggerHaptic("light")}
+                                onClick={(e) => { e.stopPropagation(); window.open(expensiveLink, "_blank"); }}
+                                title={`${expensivePlatform}: ₹${expensivePrice.toLocaleString("en-IN")} · ★${expensiveRating} (higher rated)`}
+                                className="flex-1 py-2 rounded-xl text-[10px] font-bold text-white bg-violet-600 flex flex-col items-center gap-0.5 leading-tight"
+                                style={{ boxShadow: "0 2px 8px rgba(124,58,237,0.30)" }}
+                              >
+                                <span className="text-[9px] opacity-80 font-semibold">⭐ Top Rated</span>
+                                <span>{expensivePlatform}</span>
+                              </motion.button>
+                            </div>
+                          );
+                        }
+
+                        // Only one platform — fallback to regular View Deal
+                        return (
+                          <motion.button
+                            whileHover={{ scale: 1.02, filter: "brightness(1.06)" }}
+                            whileTap={{ scale: 0.97 }}
+                            transition={snappySpring}
+                            onPointerDown={() => triggerHaptic("purchase")}
+                            onClick={(e) => { e.stopPropagation(); window.open(best.link, "_blank"); }}
+                            className={`w-full py-2.5 rounded-xl text-[11px] sm:text-xs font-semibold text-white ${T.accentCls}`}
+                            style={{ boxShadow: `0 2px 10px ${T.accent}30` }}
+                          >
+                            View Deal
+                          </motion.button>
+                        );
+                      })()}
                     </div>
                   </motion.div>
                 );
@@ -1580,6 +1785,110 @@ export default function Home() {
             DealX is an independent price comparison engine. Prices updated in real-time.
           </p>
         </footer>
+
+        {/* ── FLOATING CATEGORY MENU (when scrolled) ────────────────────── */}
+        <AnimatePresence>
+          {isScrolled && (
+            <motion.div
+              ref={categoryMenuRef}
+              initial={{ x: -60, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -60, opacity: 0 }}
+              transition={appleSpring}
+              className="fixed top-[70px] left-4 z-[199]"
+            >
+              {/* Hamburger toggle button */}
+              <motion.button
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.92 }}
+                transition={snappySpring}
+                onPointerDown={() => triggerHaptic("medium")}
+                onClick={() => setIsCategoryMenuOpen((o) => !o)}
+                aria-label="Toggle categories"
+                className={`w-11 h-11 flex items-center justify-center rounded-2xl border-2 backdrop-blur-xl shadow-lg transition-all ${
+                  isCategoryMenuOpen
+                    ? isAestheticMode ? "bg-[#8E8475] border-[#8E8475] text-white" : "bg-blue-600 border-blue-600 text-white"
+                    : isAestheticMode
+                      ? "bg-white/90 border-[#D6D2C4] text-[#8E8475]"
+                      : dark
+                        ? "bg-[#1c1c1e]/90 border-white/[0.1] text-white"
+                        : "bg-white/95 border-gray-200 text-gray-700"
+                }`}
+                style={{ boxShadow: isCategoryMenuOpen ? `0 4px 20px ${T.accent}50` : "0 4px 16px rgba(0,0,0,0.18)" }}
+              >
+                <AnimatePresence mode="wait">
+                  {isCategoryMenuOpen
+                    ? <motion.div key="close" initial={{ rotate: -45, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 45, opacity: 0 }} transition={{ duration: 0.15 }}>
+                        <CloseIcon className="w-4 h-4" />
+                      </motion.div>
+                    : <motion.div key="menu" initial={{ rotate: 45, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -45, opacity: 0 }} transition={{ duration: 0.15 }}>
+                        <MenuIcon className="w-4 h-4" />
+                      </motion.div>
+                  }
+                </AnimatePresence>
+              </motion.button>
+
+              {/* Expanded categories list */}
+              <AnimatePresence>
+                {isCategoryMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.92, y: -8, originX: 0, originY: 0 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.92, y: -8 }}
+                    transition={appleSpring}
+                    className={`absolute top-[calc(100%+8px)] left-0 min-w-[180px] rounded-2xl border-2 overflow-hidden backdrop-blur-2xl shadow-2xl ${
+                      isAestheticMode
+                        ? "bg-white/96 border-[#D6D2C4]"
+                        : dark
+                          ? "bg-[#1c1c1e]/96 border-white/[0.1]"
+                          : "bg-white/98 border-gray-200"
+                    }`}
+                    style={{ boxShadow: dark ? "0 16px 48px rgba(0,0,0,0.6)" : "0 16px 48px rgba(0,0,0,0.14)" }}
+                  >
+                    <div className="p-1.5">
+                      {[...tabs.filter((t) => !t.isDropdown), ...moreCategories].map((tab, i) => (
+                        <motion.button
+                          key={tab.name}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ ...appleSpring, delay: i * 0.03 }}
+                          whileHover={{ x: 3 }}
+                          whileTap={{ scale: 0.97 }}
+                          onPointerDown={() => triggerHaptic("tab")}
+                          onClick={() => {
+                            setActiveTab(tab.name);
+                            setIsCategoryMenuOpen(false);
+                            triggerHaptic("select");
+                          }}
+                          className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all text-left ${
+                            activeTab === tab.name
+                              ? isAestheticMode
+                                ? "bg-[#8E8475] text-white"
+                                : "bg-blue-600 text-white"
+                              : dark
+                                ? "text-white/70 hover:bg-white/[0.07] hover:text-white"
+                                : "text-gray-700 hover:bg-gray-100"
+                          }`}
+                        >
+                          <span className={activeTab === tab.name ? "text-white" : T.accentTextCls}>
+                            {tab.icon}
+                          </span>
+                          <span>{tab.name}</span>
+                          {activeTab === tab.name && (
+                            <motion.div
+                              layoutId="activeCatDot"
+                              className="ml-auto w-1.5 h-1.5 rounded-full bg-white"
+                            />
+                          )}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── FLOATING SEARCH FAB (when scrolled) ───────────────────────── */}
         <AnimatePresence>
